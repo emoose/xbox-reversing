@@ -1,24 +1,30 @@
-# IDAPython XEX Loader 0.2 for IDA 7.0+ by emoose
-# based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, and xkelib
-# (currently only works on decrypted & uncompressed XEXs, use "xextool -eu -cu xexfile.xex" beforehand!)
+# IDAPython XEX Loader 0.3 for IDA 7.0+ by emoose
+# based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
+# (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
+# --
+# requires PyCrypto to be installed first
+# "pip install pycrypto" should take care of that
 # --
 # TODO:
 # - exports
-# - encryption & compression
+# - mark imports in IDA imports window (how???)
+# - compression support
 # - relocations
 # - support for XEX1 and lower (mapped the structs a while ago, will add support soon)
 # - print more info to console (TitleID/Version, compression info, etc... should maybe print all structs to aid with RE?)
 # - name/comment XEX resources?
 
+import io
 import idc 
 import idaapi
 import ida_segment
 import ida_bytes
-import ida_auto
+import ida_loader
 import struct
 import ctypes
 import os
 import x360_imports
+from Crypto.Cipher import AES
 
 XEX2_MAGIC = "XEX2"
 XEX2_FORMAT = "Xbox360 XEX File"
@@ -28,7 +34,12 @@ uint8_t  = ctypes.c_byte
 uint16_t = ctypes.c_ushort
 uint32_t = ctypes.c_uint
 
+retail_key = b'\x20\xB1\x85\xA5\x9D\x28\xFD\xC3\x40\x58\x3F\xBB\x08\x96\xBF\x91'
+devkit_key = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
 # Globals shared between load_file, pe_load, etc..
+image_key = b''
+session_key = b''
 directory_entry_headers = {}
 directory_entries = {}
 base_address = 0
@@ -171,24 +182,6 @@ def pe_add_section(section):
 
   idc.set_segm_attr(seg_addr, idc.SEGATTR_PERM, seg_perms);
   idc.SetSegmentType(seg_addr, seg_type)
- 
-# "Raw" basefile format has extraneous zeroes removed - loader is meant to re-add them based on contents of ImageKeys.FileDataDescriptor
-# atm I'm not sure how to make IDA load from a modified in-memory copy of the PE though...
-# So for now we do some funny hack on the sections VA to get the real file offset of it
-# (hopefully IDAPython can load from in-memory data though, since I don't see how we could handle encryption/compression otherwise :)
-# ^ mem2base(bytes, addr) should work?
-def pe_adjust_addr(addr):
-  global xex_blocks
-
-  i = 0
-  new_addr = addr
-  for block in xex_blocks:
-    i += block.Size
-    if addr > i:
-      new_addr -= block.ZeroSize
-    i += block.ZeroSize
-
-  return new_addr
 
 def pe_load(li):
   global directory_entry_headers
@@ -196,18 +189,19 @@ def pe_load(li):
   global entry_point
 
   # Get size of the PE
-  pe_addr = li.tell()
   li.seek(0, 2) # seek to end
-  pe_size = li.tell() - pe_addr
-  li.seek(pe_addr)
+  pe_size = li.tell()
 
   # Read DOS & NT headers
+  li.seek(0)
   dos_header = read_struct(li, ImageDOSHeader)
+  if dos_header.MZSignature != 0x5A4D:
+    return 0
 
-  li.seek(pe_addr + dos_header.AddressOfNewExeHeader)
+  li.seek(dos_header.AddressOfNewExeHeader)
   nt_header = read_struct(li, ImageNTHeaders)
 
-  # Skip past PE data directories (for now? do we ever need them?)
+  # Skip past PE data directories (for now? will we ever need them?)
   li.seek(nt_header.OptionalHeader.NumberOfRvaAndSizes * 8, os.SEEK_CUR)
 
   # If no EP passed we'll use EP from the optionalheader
@@ -221,7 +215,7 @@ def pe_load(li):
     section_headers.append(read_struct(li, ImageSectionHeader))
 
   for section in section_headers:
-    sec_addr = pe_adjust_addr(section.VirtualAddress)
+    sec_addr = section.VirtualAddress
     sec_size = min(section.VirtualSize, section.SizeOfRawData)
 
     if sec_addr + sec_size > pe_size:
@@ -233,30 +227,25 @@ def pe_load(li):
 
     pe_add_section(section)
 
-    # Load from file into IDB
-    li.file2base(sec_addr + pe_addr, base_address + section.VirtualAddress, base_address + section.VirtualAddress + sec_size, 0)
+    # Load data into IDB
+    li.seek(sec_addr)
+    ida_loader.mem2base(li.read(sec_size), base_address + sec_addr)
 
   # Name the EP if we have one
   if entry_point > 0:
     idaapi.add_entry(entry_point, entry_point, "start", 1)
 
-  # Setup our imports (.......)
-  if XEX_HEADER_IMPORTS in directory_entry_headers:
-    xex_load_imports(li)
-
-  # XEX load complete :)
-  print("[+] XEX loaded, voila!")
+  # PE load complete :)
   return 1
 
-  
-# todo: this messy stuff
-# how to even define an import module in IDA? and then add imports to that module? can't find anything for it in IDAPython...
+# todo: define imports in IDA's imports window (how though?)
 def xex_load_imports(li):
   global directory_entry_headers
 
   li.seek(directory_entry_headers[XEX_HEADER_IMPORTS])
   import_desc = read_struct(li, XEXImportDescriptor)
 
+  # seperate the library names from the name table
   import_libnames = []
   cur_lib = ""
   for i in range(0, import_desc.NameTableSize):
@@ -269,11 +258,11 @@ def xex_load_imports(li):
     else:
       cur_lib += name_char
 
+  # read in each import library
   import_libs = []
   for i in range(0, import_desc.ModuleCount):
     table_header = read_struct(li, XEXImportTable)
     libname = import_libnames[table_header.ModuleIndex]
-    print(table_header)
     import_table = []
     for i in range(0, table_header.ImportCount):
       record_addr = read_dwordBE(li)
@@ -298,10 +287,9 @@ def xex_load_imports(li):
         # important to note that basefiles extracted via xextool have this rewrite done already, but raw basefile from XEX doesn't!
         # todo: find out how to add to imports window like xorloser loader...
 
-        #idc.set_func_flags(record_addr, idc.FUNC_LIB)
         ida_bytes.put_dword(record_addr + 0, 0x38600000 | table_header.ModuleIndex)
         ida_bytes.put_dword(record_addr + 4, 0x38800000 | ordinal)
-        idc.add_func(record_addr, record_addr + 4)
+        idc.add_func(record_addr, record_addr + 0x10)
         idc.set_name(record_addr, import_name)
 
         # this should mark the func as a library function, but it doesn't do anything for some reason
@@ -309,7 +297,7 @@ def xex_load_imports(li):
         idc.set_func_flags(record_addr, idc.get_func_flags(record_addr) | idc.FUNC_LIB)
 
       else:
-        print("[+] %s import %d (@ 0x%X) unknown type %d!" % (libname, ordinal, record_addr, record_type))
+        print("[+] %s import %d (%s) (@ 0x%X) unknown type %d!" % (libname, ordinal, import_name, record_addr, record_type))
 
   return
 
@@ -340,6 +328,18 @@ class ImageXEXHeader(ctypes.BigEndianStructure):
     ("SizeOfHeaders", uint32_t),
     ("SizeOfDiscardableHeaders", uint32_t),
     ("SecurityInfo", uint32_t),
+    ("HeaderDirectoryEntryCount", uint32_t),
+  ]
+
+# ImageXEXHeader for XEX? (1529)
+class ImageXEXHeader_3F(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Magic", uint32_t),
+    ("ModuleFlags", uint32_t),
+    ("SizeOfHeaders", uint32_t),
+    ("SizeOfDiscardableHeaders", uint32_t),
+    ("LoadAddress", uint32_t),
+    ("Unknown14", uint32_t),
     ("HeaderDirectoryEntryCount", uint32_t),
   ]
 
@@ -578,12 +578,87 @@ def accept_file(li, n):
 
   return 0
 
+def xex_read_image(li, use_dev_key):
+  global directory_entries
+  global image_key
+  global session_key
+
+  data_descriptor = directory_entries[XEX_FILE_DATA_DESCRIPTOR_HEADER]
+  if data_descriptor.Format > 1:
+    idc.warning("Sorry, XEX loader can't load compressed XEX atm :(")
+    return 0
+
+  # Setup session key for decrypting basefile
+  aes = AES.new(devkit_key if use_dev_key else retail_key, AES.MODE_ECB)
+  session_key = aes.decrypt(image_key)
+
+  result = 0
+  if data_descriptor.Format == 1:
+    result = xex_read_uncompressed(li)
+  elif data_descriptor.Format == 2:
+    result = xex_read_compressed(li)
+  else:
+    idc.warning("xex_read_image failed: unknown compression format %d!" % data_descriptor.Format)
+    result = 0
+
+  # Let user know which key was used if file is encrypted & we've loaded successfully
+  if result and data_descriptor.Flags == 1:
+    print("[+] (decrypted using %s key)" % ("devkit" if use_dev_key else "retail"))
+
+  return result
+
+def xex_read_compressed(li):
+  #todo
+  return 0
+
+def xex_read_uncompressed(li):
+  global directory_entry_headers
+  global directory_entries
+  global xex_blocks
+  global xex_header
+  global session_key
+
+  data_descriptor = directory_entries[XEX_FILE_DATA_DESCRIPTOR_HEADER]
+
+  li.seek(directory_entry_headers[XEX_FILE_DATA_DESCRIPTOR_HEADER] + 8) # skip first 8 bytes of data descriptor
+  num_blocks = (data_descriptor.Size - 8) / 8
+
+  # Read block descriptor structs
+  for i in range(0, num_blocks):
+    block = read_struct(li, XEXRawBaseFileBlock)
+    xex_blocks.append(block)
+
+  # Read in basefile
+  pe_data = io.BytesIO()
+  aes = AES.new(session_key, AES.MODE_CBC, '\0' * 16)
+
+  li.seek(xex_header.SizeOfHeaders)
+  for block in xex_blocks:
+    data_size = block.Size
+    zero_size = block.ZeroSize
+
+    if data_descriptor.Flags == 0:
+      # decrypted
+      pe_data.write(li.read(data_size))
+    elif data_descriptor.Flags == 1:
+      # encrypted
+      data = li.read(data_size)
+      pe_data.write(aes.decrypt(data))
+    else:
+      idc.warning("xex_read_uncompressed failed: unknown encryption flags %d" % data_descriptor.Flags)
+      return 0
+
+    pe_data.write('\0' * zero_size)
+
+  return pe_load(pe_data)
+
 def load_file(li, neflags, format):
+  global xex_header
   global directory_entry_headers
   global directory_entries
   global base_address
   global entry_point
-  global xex_blocks
+  global image_key
 
   if format != XEX2_FORMAT:
     Warning("Unknown format name: '%s'" % format)
@@ -591,7 +666,7 @@ def load_file(li, neflags, format):
 
   idaapi.set_processor_type("ppc", idc.SETPROC_LOADER)
 
-  print("[+] IDAPython XEX Loader 0.1 for IDA 7.0+ by emoose")
+  print("[+] IDAPython XEX Loader 0.3 for IDA 7.0+ by emoose")
 
   # Read XEX header & directory entry headers
   li.seek(0)
@@ -606,6 +681,7 @@ def load_file(li, neflags, format):
   # Read XEX SecurityInfo header
   li.seek(xex_header.SecurityInfo)
   xex_security_info = read_struct(li, XEX2SecurityInfo)
+  image_key = xex_security_info.ImageInfo.ImageKey
 
   # Try reading in XEX directory entry structures
   print("[+] Reading %d XEX directory entries / optional headers..." % xex_header.HeaderDirectoryEntryCount)
@@ -725,6 +801,7 @@ def load_file(li, neflags, format):
     print(" SaveGameId: %08X" % exec_id.SaveGameId)
     print
 
+  # Exit out if this is a patch file
   if xex_header.ModuleFlags & (XEX_MODULE_FLAG_PATCH | XEX_MODULE_FLAG_PATCH_FULL | XEX_MODULE_FLAG_PATCH_DELTA):
     idc.warning("Sorry, XEX loader doesn't support loading XEX patches")
     return 0
@@ -742,20 +819,16 @@ def load_file(li, neflags, format):
   if XEX_HEADER_PE_BASE in directory_entries:
     base_address = directory_entries[XEX_HEADER_PE_BASE]
 
-  # todo: add support for compression & encryption here!
-  # For now only support reading in raw block descriptors (needed to align raw file properly, see pe_adjust_addr)
-  xex_blocks = []
-  if XEX_FILE_DATA_DESCRIPTOR_HEADER in directory_entries:
-    data_descriptor = directory_entries[XEX_FILE_DATA_DESCRIPTOR_HEADER]
-    if data_descriptor.Flags != 0 or data_descriptor.Format > 1:
-      idc.warning("Sorry, XEX loader can't load compressed/encrypted XEX atm :(")
-      return 0
+  # Try reading in the basefile
+  if xex_read_image(li, 0) or xex_read_image(li, 1):
+    # basefile loaded!
 
-    li.seek(directory_entry_headers[XEX_FILE_DATA_DESCRIPTOR_HEADER] + 8) # skip first 8 bytes of data descriptor
-    num_blocks = (data_descriptor.Size - 8) / 8
-    for i in range(0, num_blocks):
-      xex_blocks.append(read_struct(li, XEXRawBaseFileBlock))
+    # Setup imports if we have them
+    if XEX_HEADER_IMPORTS in directory_entry_headers:
+      xex_load_imports(li)
 
-  # Now pass it to load_pe for basefile parsing!
-  li.seek(xex_header.SizeOfHeaders)
-  return pe_load(li)
+    # Done :)
+    print("[+] XEX loaded, voila!")
+    return 1
+
+  return 0
