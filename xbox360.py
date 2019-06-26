@@ -1,4 +1,4 @@
-# IDAPython XEX Loader 0.5 for IDA 7.0+ by emoose
+# IDAPython XEX Loader 0.5a for IDA 7.0+ by emoose
 # Based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
 # (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
 # --
@@ -11,14 +11,14 @@
 # - loading imports & exports from XEX headers ("XEX?" format stores imports in PE headers, which this doesn't read atm)
 # --
 # TODO:
-# - mark imports in IDA imports window (might be impossible in python - no import_module binding ...)
 # - read imports from PE headers if they exist
+# - mark imports in IDA imports window (might be impossible in python - no import_module binding ...)
 # - compression support (important for XEX1 and lower, since there's no decompressors for those)
-# - relocations
+# - relocations?
 # - print more info to console (compression info, etc... should maybe print all structs to aid with RE?)
 # - name/comment XEX resources?
 # - find why IDA sometimes isn't marking strings & such inside data sections
-# - test against more XEXs (todo: 1640, 1746)
+# - test against more XEXs (need to check 1640 & 1746)
 
 import io
 import idc 
@@ -52,7 +52,7 @@ uint32_t = ctypes.c_uint
 
 retail_key = b'\x20\xB1\x85\xA5\x9D\x28\xFD\xC3\x40\x58\x3F\xBB\x08\x96\xBF\x91'
 devkit_key = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
-unused_key = b'\xA2\x6C\x10\xF7\x1F\xD9\x35\xE9\x8B\x99\x92\x2C\xE9\x32\x15\x72' # aka "XEX1 key", never seen it used, we'll still try using it as last resort though
+unused_key = b'\xA2\x6C\x10\xF7\x1F\xD9\x35\xE9\x8B\x99\x92\x2C\xE9\x32\x15\x72' # aka "XEX1 key", never seen it used, we'll try using it as last resort though
 
 xex_keys = [retail_key, devkit_key, unused_key]
 xex_key_names = ["retail", "devkit", "xex1"]
@@ -351,7 +351,7 @@ def xex_load_exports(li):
 
     # Add to exports list & mark as func
     idc.add_entry(func_ord, func_va, func_name, 1)
-    idc.add_func(func_va)
+    idc.add_func(func_va) # todo: check if func is in a CODE section before calling add_func, we don't want to add_func variable exports!
 
   return 1
 
@@ -398,7 +398,7 @@ class ImageXEXHeader(ctypes.BigEndianStructure):
     ("HeaderDirectoryEntryCount", uint32_t),
   ]
 
-# ImageXEXHeader for "XEX?" format (1529)
+# ImageXEXHeader for "XEX?" format, which doesn't contain a SecurityInfo struct (>=1529)
 class ImageXEXHeader_3F(ctypes.BigEndianStructure):
   _fields_ = [
     ("Magic", uint32_t),
@@ -825,7 +825,7 @@ def load_file(li, neflags, format):
   idaapi.set_processor_type("ppc", idc.SETPROC_LOADER)
   ida_typeinf.set_compiler_id(idc.COMP_MS)
 
-  print("[+] IDAPython XEX Loader 0.4 for IDA 7.0+ by emoose")
+  print("[+] IDAPython XEX Loader 0.5a for IDA 7.0+ by emoose")
 
   # Read XEX header & directory entry headers
   li.seek(0)
@@ -997,18 +997,20 @@ def load_file(li, neflags, format):
     base_address = directory_entries[XEX_HEADER_PE_BASE]
 
   # Try reading in the basefile
-  if xex_read_image(li, 0) or xex_read_image(li, 1) or xex_read_image(li, 2):
-    # basefile loaded!
+  if !xex_read_image(li, 0) and !xex_read_image(li, 1) and !xex_read_image(li, 2):
+    print("[+] Failed to load PE image from XEX :(")
+    return 0
 
-    # Setup imports if we have them
-    if XEX_HEADER_IMPORTS in directory_entry_headers:
-      xex_load_imports(li)
+  # basefile loaded!
 
-    if export_table_va != 0:
-      xex_load_exports(li)
+  # Setup imports if we have them
+  if XEX_HEADER_IMPORTS in directory_entry_headers:
+    xex_load_imports(li)
 
-    # Done :)
-    print("[+] XEX loaded, voila!")
-    return 1
+  # Setup exports if we have them
+  if export_table_va != 0:
+    xex_load_exports(li)
 
-  return 0
+  # Done :)
+  print("[+] XEX loaded, voila!")
+  return 1
