@@ -19,3 +19,6 @@ Since those have pretty major blockers I don't think any more development will b
 This folder contains templates for use with [010 Editor](https://www.sweetscape.com/010editor/). Xbox360 related templates were mainly written by Anthony, with some very minor additions by me.
 
 Templates can be installed by opening Options -> Compiling -> Templates, clicking "Add..." and then choosing the template to install, which should make 010 Editor automatically load the template when opening a supported file.
+
+## License
+All code is licensed under GPLv3 unless otherwise stated.
