@@ -1,4 +1,4 @@
-# IDAPython XEX Loader 0.5b for IDA 7.0+ by emoose
+# IDAPython XEX Loader 0.6 for IDA 7.0+ by emoose
 # Based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
 # (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
 # --
@@ -281,6 +281,7 @@ def xex_load_imports(li):
 
   # read in each import library
   import_libs = []
+  variables = {}
   for i in range(0, import_desc.ModuleCount):
     table_addr = li.tell()
     table_header = read_struct(li, XEXImportTable)
@@ -300,6 +301,7 @@ def xex_load_imports(li):
         idc.create_data(record_addr + 2, idc.FF_WORD, 2, idc.BADADDR)
         idc.make_array(record_addr, 2)
         idc.set_name(record_addr, "__imp__" + import_name)
+        variables[ordinal] = record_addr
 
       elif record_type == 1:
         # thunk
@@ -318,8 +320,17 @@ def xex_load_imports(li):
         # tried a bunch of things like idaapi.autoWait() before running it, just crashes IDA with internal errors...
         idc.set_func_flags(record_addr, idc.get_func_flags(record_addr) | idc.FUNC_LIB)
 
+        # thunk means it's not a variable, so remove from variables dict
+        if ordinal in variables:
+          variables.pop(ordinal)
+
       else:
         print("[+] %s import %d (%s) (@ 0x%X) unknown type %d!" % (libname, ordinal, import_name, record_addr, record_type))
+
+    # remove "__imp__" part from variable import names
+    for ordinal in variables:
+      import_name = x360_imports.DoNameGen(libname, 0, ordinal)
+      idc.set_name(variables[ordinal], import_name)
 
     # Seek to end of this import table
     li.seek(table_addr + table_header.TableSize)
@@ -339,6 +350,9 @@ def xex_load_exports(li):
     print("[+] Export table magic is invalid! (0x%X 0x%X 0x%X)" % (export_table.Magic[0], export_table.Magic[1], export_table.Magic[2]))
     return 0
 
+  print("[+] Loading module exports...")
+  print(export_table)
+
   ordinal_addrs_va = export_table_va + slen
   for i in range(0, export_table.Count):
     func_ord = export_table.Base + i
@@ -346,12 +360,15 @@ def xex_load_exports(li):
     if func_va == 0:
       continue
 
-    func_va = func_va | (export_table.ImageBaseAddress << 16)
-    func_name = x360_imports.DoNameGen("export", 0, func_ord)
+    func_va = func_va + (export_table.ImageBaseAddress << 16)
+    func_name = x360_imports.DoNameGen(idc.get_root_filename(), 0, func_ord)
 
-    # Add to exports list & mark as func
-    idc.add_entry(func_ord, func_va, func_name, 1)
-    idc.add_func(func_va) # todo: check if func is in a CODE section before calling add_func, we don't want to add_func variable exports!
+    # Add to exports list & mark as func if inside a code section
+    func_segmclass = ida_segment.get_segm_class(ida_segment.getseg(func_va))
+    idc.add_entry(func_ord, func_va, func_name, 1 if func_segmclass == "CODE" else 0)
+
+    if func_segmclass == "CODE":
+      idc.add_func(func_va)
 
   return 1
 
@@ -826,7 +843,7 @@ def load_file(li, neflags, format):
   idaapi.set_processor_type("ppc", idc.SETPROC_LOADER)
   ida_typeinf.set_compiler_id(idc.COMP_MS)
 
-  print("[+] IDAPython XEX Loader 0.5b for IDA 7.0+ by emoose")
+  print("[+] IDAPython XEX Loader 0.6 for IDA 7.0+ by emoose")
 
   # Read XEX header & directory entry headers
   li.seek(0)
