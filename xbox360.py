@@ -217,13 +217,21 @@ def pe_load(li):
   li.seek(0)
   dos_header = read_struct(li, ImageDOSHeader)
   if dos_header.MZSignature != 0x5A4D:
+    print("[+] PE has invalid ImageDOSHeader.MZSignature! (0x%x)" % dos_header.MZSignature)
     return 0
 
   li.seek(dos_header.AddressOfNewExeHeader)
   nt_header = read_struct(li, ImageNTHeaders)
+  if nt_header.Signature != 0x4550:
+    print("[+] PE has invalid ImageNTHeaders.Signature! (0x%x)" % nt_header.Signature)
+    return 0
 
   # Skip past PE data directories (for now? will we ever need them?)
   li.seek(nt_header.OptionalHeader.NumberOfRvaAndSizes * 8, os.SEEK_CUR)
+
+  # Use base address from optionalheader if we don't already have one
+  if base_address <= 0:
+    base_address = nt_header.OptionalHeader.ImageBase
 
   # If no EP passed we'll use EP from the optionalheader
   if entry_point <= 0:
@@ -266,7 +274,7 @@ def xex_load_imports(li):
   li.seek(directory_entry_headers[XEX_HEADER_IMPORTS])
   import_desc = read_struct(li, XEXImportDescriptor)
 
-  # seperate the library names from the name table
+  # seperate the library names in the name table
   import_libnames = []
   cur_lib = ""
   for i in range(0, import_desc.NameTableSize):
@@ -349,7 +357,7 @@ def xex_load_exports(li):
   fit = min(len(bytes), slen)
   ctypes.memmove(ctypes.addressof(export_table), bytes, fit)
 
-  if export_table.Magic[0] != 0x48000000 or export_table.Magic[1] != 0x00485645 or export_table.Magic[2] != 0x48000000:
+  if export_table.Magic[0] != XEX_EXPORT_MAGIC_0 or export_table.Magic[1] != XEX_EXPORT_MAGIC_1 or export_table.Magic[2] != XEX_EXPORT_MAGIC_2:
     print("[+] Export table magic is invalid! (0x%X 0x%X 0x%X)" % (export_table.Magic[0], export_table.Magic[1], export_table.Magic[2]))
     return 0
 
