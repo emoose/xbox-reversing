@@ -182,10 +182,6 @@ IMAGE_SCN_MEM_WRITE = 0x80000000
 def pe_add_section(section):
   global base_address
 
-  seg_addr = base_address + section.VirtualAddress
-  idc.AddSeg(seg_addr, seg_addr + section.VirtualSize, 0, 1, idaapi.saRelPara, idaapi.scPub)
-  idc.RenameSeg(seg_addr, section.Name)
-
   # Segment permissions
   seg_perms = 0
   if section.Characteristics & IMAGE_SCN_MEM_EXECUTE:
@@ -196,12 +192,16 @@ def pe_add_section(section):
     seg_perms |= ida_segment.SEGPERM_WRITE
 
   # Segment type
-  seg_type = idc.SEG_DATA
+  seg_class = "DATA"
   if section.Characteristics & IMAGE_SCN_CNT_CODE:
-    seg_type = idc.SEG_CODE
+    seg_class = "CODE"
 
-  idc.set_segm_attr(seg_addr, idc.SEGATTR_PERM, seg_perms);
-  idc.SetSegmentType(seg_addr, seg_type)
+  seg_addr = base_address + section.VirtualAddress
+  idaapi.add_segm(0, seg_addr, seg_addr + section.VirtualSize, section.Name, seg_class)
+  idc.set_segm_alignment(seg_addr, idc.saRelPara)
+  idc.set_segm_attr(seg_addr, idc.SEGATTR_PERM, seg_perms)
+  idc.set_default_sreg_value(seg_addr, "DS", 0) # how is DS meant to be set? prolly don't matter but still
+  idc.set_default_sreg_value(seg_addr, "VLE", 0)
 
 def pe_load(li):
   global directory_entry_headers
