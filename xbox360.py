@@ -811,6 +811,7 @@ def accept_file(li, n):
 
 def load_file(li, neflags, format):
   global xex_magic
+  global xex_header
   global directory_entry_headers
   global directory_entries
   global export_table_va
