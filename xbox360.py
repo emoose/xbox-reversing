@@ -1,4 +1,4 @@
-# IDAPython XEX Loader 0.5a for IDA 7.0+ by emoose
+# IDAPython XEX Loader 0.5b for IDA 7.0+ by emoose
 # Based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
 # (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
 # --
@@ -825,7 +825,7 @@ def load_file(li, neflags, format):
   idaapi.set_processor_type("ppc", idc.SETPROC_LOADER)
   ida_typeinf.set_compiler_id(idc.COMP_MS)
 
-  print("[+] IDAPython XEX Loader 0.5a for IDA 7.0+ by emoose")
+  print("[+] IDAPython XEX Loader 0.5b for IDA 7.0+ by emoose")
 
   # Read XEX header & directory entry headers
   li.seek(0)
@@ -997,7 +997,7 @@ def load_file(li, neflags, format):
     base_address = directory_entries[XEX_HEADER_PE_BASE]
 
   # Try reading in the basefile
-  if !xex_read_image(li, 0) and !xex_read_image(li, 1) and !xex_read_image(li, 2):
+  if xex_read_image(li, 0) == 0 and xex_read_image(li, 1) == 0 and xex_read_image(li, 2) == 0:
     print("[+] Failed to load PE image from XEX :(")
     return 0
 
