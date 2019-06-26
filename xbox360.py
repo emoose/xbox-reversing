@@ -1,18 +1,25 @@
-# IDAPython XEX Loader 0.3 for IDA 7.0+ by emoose
-# based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
+# IDAPython XEX Loader 0.4 for IDA 7.0+ by emoose
+# Based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
 # (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
 # --
-# requires PyCrypto to be installed first
+# Requires PyCrypto to be installed first
 # "pip install pycrypto" should take care of that
+# --
+# This loader should support:
+# - encrypted & decrypted XEXs (as long as they're uncompressed)
+# - XEX2 (>=1888), XEX1 (>=1838), XEX% (>=1746), XEX- (>=1640) & XEX? (>=1529) formats
+# - loading imports from XEX headers ("XEX?" format stores imports in PE headers, which this doesn't read atm)
 # --
 # TODO:
 # - exports
 # - mark imports in IDA imports window (how???)
-# - compression support
+# - read imports from PE headers if they exist
+# - compression support (important for XEX1 and lower, since there's no decompressors for those)
 # - relocations
-# - support for XEX1 and lower (mapped the structs a while ago, will add support soon)
-# - print more info to console (TitleID/Version, compression info, etc... should maybe print all structs to aid with RE?)
+# - print more info to console (compression info, etc... should maybe print all structs to aid with RE?)
 # - name/comment XEX resources?
+# - find why IDA isn't marking strings & such inside data sections
+# - test against more XEXs (todo: 1640, 1746)
 
 import io
 import idc 
@@ -20,14 +27,24 @@ import idaapi
 import ida_segment
 import ida_bytes
 import ida_loader
+import ida_typeinf
 import struct
 import ctypes
 import os
 import x360_imports
 from Crypto.Cipher import AES
 
-XEX2_MAGIC = "XEX2"
-XEX2_FORMAT = "Xbox360 XEX File"
+_MAGIC_XEX32 = "XEX2" # >=1888
+_MAGIC_XEX31 = "XEX1" # >=1838
+_MAGIC_XEX25 = "XEX%" # >=1746
+_MAGIC_XEX2D = "XEX-" # >=1640
+_MAGIC_XEX3F = "XEX?" # >=1529
+
+_FORMAT_XEX32 = "Xbox360 XEX2 File"
+_FORMAT_XEX31 = "Xbox360 XEX1 File (>=1838)"
+_FORMAT_XEX25 = "Xbox360 XEX% File (>=1746)"
+_FORMAT_XEX2D = "Xbox360 XEX- File (>=1640)"
+_FORMAT_XEX3F = "Xbox360 XEX? File (>=1529)"
 
 char_t = ctypes.c_char
 uint8_t  = ctypes.c_byte
@@ -36,6 +53,10 @@ uint32_t = ctypes.c_uint
 
 retail_key = b'\x20\xB1\x85\xA5\x9D\x28\xFD\xC3\x40\x58\x3F\xBB\x08\x96\xBF\x91'
 devkit_key = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+unused_key = b'\xA2\x6C\x10\xF7\x1F\xD9\x35\xE9\x8B\x99\x92\x2C\xE9\x32\x15\x72' # aka "XEX1 key", never seen it used, we'll still try using it as last resort though
+
+xex_keys = [retail_key, devkit_key, unused_key]
+xex_key_names = ["retail", "devkit", "xex1"]
 
 # Globals shared between load_file, pe_load, etc..
 image_key = b''
@@ -44,7 +65,6 @@ directory_entry_headers = {}
 directory_entries = {}
 base_address = 0
 entry_point = 0
-xex_blocks = []
 
 # Debug helpers to let us print(structure)
 def StructAsString(self):
@@ -187,6 +207,7 @@ def pe_load(li):
   global directory_entry_headers
   global base_address
   global entry_point
+  global xex_magic
 
   # Get size of the PE
   li.seek(0, 2) # seek to end
@@ -206,7 +227,7 @@ def pe_load(li):
 
   # If no EP passed we'll use EP from the optionalheader
   if entry_point <= 0:
-    entry_point = nt_header.OptionalHeader.AddressOfEntryPoint
+    entry_point = base_address + nt_header.OptionalHeader.AddressOfEntryPoint
 
   # Read in & map our section headers
   # (todo: fix loading more sections than needed, seems sections like .reloc shouldn't be loaded in?)
@@ -215,7 +236,7 @@ def pe_load(li):
     section_headers.append(read_struct(li, ImageSectionHeader))
 
   for section in section_headers:
-    sec_addr = section.VirtualAddress
+    sec_addr = section.VirtualAddress if xex_magic != _MAGIC_XEX3F else section.PointerToRawData
     sec_size = min(section.VirtualSize, section.SizeOfRawData)
 
     if sec_addr + sec_size > pe_size:
@@ -229,7 +250,7 @@ def pe_load(li):
 
     # Load data into IDB
     li.seek(sec_addr)
-    ida_loader.mem2base(li.read(sec_size), base_address + sec_addr)
+    ida_loader.mem2base(li.read(sec_size), base_address + section.VirtualAddress)
 
   # Name the EP if we have one
   if entry_point > 0:
@@ -251,7 +272,7 @@ def xex_load_imports(li):
   for i in range(0, import_desc.NameTableSize):
     name_char = li.read(1)
 
-    if name_char == '\0':
+    if name_char == '\0' or name_char == '\xCD':
       if cur_lib != "":
         import_libnames.append(cur_lib)
         cur_lib = ""
@@ -261,6 +282,7 @@ def xex_load_imports(li):
   # read in each import library
   import_libs = []
   for i in range(0, import_desc.ModuleCount):
+    table_addr = li.tell()
     table_header = read_struct(li, XEXImportTable)
     libname = import_libnames[table_header.ModuleIndex]
     import_table = []
@@ -299,8 +321,12 @@ def xex_load_imports(li):
       else:
         print("[+] %s import %d (%s) (@ 0x%X) unknown type %d!" % (libname, ordinal, import_name, record_addr, record_type))
 
+    # Seek to end of this import table
+    li.seek(table_addr + table_header.TableSize)
+
   return
 
+# XEX structs & enums
 class XEXImportDescriptor(ctypes.BigEndianStructure):
   _fields_ = [
     ("Size", uint32_t),
@@ -319,8 +345,6 @@ class XEXImportTable(ctypes.BigEndianStructure):
     ("ImportCount", uint16_t),
   ]
 
-
-# XEX structs & enums
 class ImageXEXHeader(ctypes.BigEndianStructure):
   _fields_ = [
     ("Magic", uint32_t),
@@ -331,7 +355,7 @@ class ImageXEXHeader(ctypes.BigEndianStructure):
     ("HeaderDirectoryEntryCount", uint32_t),
   ]
 
-# ImageXEXHeader for XEX? (1529)
+# ImageXEXHeader for "XEX?" format (1529)
 class ImageXEXHeader_3F(ctypes.BigEndianStructure):
   _fields_ = [
     ("Magic", uint32_t),
@@ -445,6 +469,67 @@ class XEX2SecurityInfo(ctypes.BigEndianStructure):
     ("Size", uint32_t),
     ("ImageSize", uint32_t),
     ("ImageInfo", XEX2HVImageInfo),
+    ("AllowedMediaTypes", uint32_t), # todo:AllowedMediaTypes
+    ("PageDescriptorCount", uint32_t),
+  ]
+
+class XEX1HVImageInfo(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Signature", uint8_t * 0x100),
+    ("ImageHash", uint8_t * 0x14),
+    ("ImportDigest", uint8_t * 0x14),
+    ("LoadAddress", uint32_t),
+    ("ImageKey", uint8_t * 0x10),
+    ("MediaID", uint8_t * 0x10),
+    ("GameRegion", uint32_t), # todo:GameRegions
+    ("ImageFlags", uint32_t), # todo:ImageFlags
+    ("ExportTableAddress", uint32_t),
+  ]
+
+class XEX1SecurityInfo(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Size", uint32_t),
+    ("ImageSize", uint32_t),
+    ("ImageInfo", XEX1HVImageInfo),
+    ("AllowedMediaTypes", uint32_t), # todo:AllowedMediaTypes
+    ("PageDescriptorCount", uint32_t),
+  ]
+
+class XEX25HVImageInfo(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Signature", uint8_t * 0x100),
+    ("ImageHash", uint8_t * 0x14),
+    ("ImportDigest", uint8_t * 0x14),
+    ("LoadAddress", uint32_t),
+    ("ImageKey", uint8_t * 0x10),
+    ("ImageFlags", uint32_t), # todo:ImageFlags
+    ("ExportTableAddress", uint32_t),
+  ]
+
+class XEX25SecurityInfo(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Size", uint32_t),
+    ("ImageSize", uint32_t),
+    ("ImageInfo", XEX25HVImageInfo),
+    ("AllowedMediaTypes", uint32_t), # todo:AllowedMediaTypes
+    ("PageDescriptorCount", uint32_t),
+  ]
+
+class XEX2DHVImageInfo(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Signature", uint8_t * 0x100),
+    ("ImageHash", uint8_t * 0x14),
+    ("ImportDigest", uint8_t * 0x14),
+    ("LoadAddress", uint32_t),
+    ("ImageFlags", uint32_t), # todo:ImageFlags
+    ("ExportTableAddress", uint32_t),
+    ("Unknown", uint32_t),
+  ]
+
+class XEX2DSecurityInfo(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Size", uint32_t),
+    ("ImageInfo", XEX2DHVImageInfo),
     ("AllowedMediaTypes", uint32_t), # todo:AllowedMediaTypes
     ("PageDescriptorCount", uint32_t),
   ]
@@ -573,37 +658,54 @@ def read_xexstring(li):
 def accept_file(li, n):
   li.seek(0)
   magic = li.read(4)
-  if magic == XEX2_MAGIC:
-    return XEX2_FORMAT
+  if magic == _MAGIC_XEX32:
+    return _FORMAT_XEX32
+  if magic == _MAGIC_XEX31:
+    return _FORMAT_XEX31
+  if magic == _MAGIC_XEX25:
+    return _FORMAT_XEX25
+  if magic == _MAGIC_XEX2D:
+    return _FORMAT_XEX2D
+  if magic == _MAGIC_XEX3F:
+    return _FORMAT_XEX3F
+
 
   return 0
 
-def xex_read_image(li, use_dev_key):
+def xex_read_image(li, xex_key_index):
   global directory_entries
   global image_key
   global session_key
 
-  data_descriptor = directory_entries[XEX_FILE_DATA_DESCRIPTOR_HEADER]
-  if data_descriptor.Format > 1:
+  comp_format = 0
+  enc_flag = 0
+  if XEX_FILE_DATA_DESCRIPTOR_HEADER in directory_entries:
+    data_descriptor = directory_entries[XEX_FILE_DATA_DESCRIPTOR_HEADER]
+    comp_format = data_descriptor.Format
+    enc_flag = data_descriptor.Flags
+
+  if comp_format > 1:
     idc.warning("Sorry, XEX loader can't load compressed XEX atm :(")
     return 0
 
   # Setup session key for decrypting basefile
-  aes = AES.new(devkit_key if use_dev_key else retail_key, AES.MODE_ECB)
+  aes = AES.new(xex_keys[xex_key_index], AES.MODE_ECB)
   session_key = aes.decrypt(image_key)
 
   result = 0
-  if data_descriptor.Format == 1:
+  if comp_format == 0:
+    result = xex_read_raw(li)
+  elif comp_format == 1:
     result = xex_read_uncompressed(li)
-  elif data_descriptor.Format == 2:
+  elif comp_format == 2:
     result = xex_read_compressed(li)
   else:
-    idc.warning("xex_read_image failed: unknown compression format %d!" % data_descriptor.Format)
+    idc.warning("xex_read_image failed: unknown compression format %d!" % comp_format)
     result = 0
 
   # Let user know which key was used if file is encrypted & we've loaded successfully
-  if result and data_descriptor.Flags == 1:
-    print("[+] (decrypted using %s key)" % ("devkit" if use_dev_key else "retail"))
+  if result and enc_flag == 1:
+    print("[+] (decrypted using %s key)" % xex_key_names[xex_key_index])
 
   return result
 
@@ -611,10 +713,22 @@ def xex_read_compressed(li):
   #todo
   return 0
 
+def xex_read_raw(li):
+  global xex_header
+
+  # Seek to end of file
+  li.seek(0, 2)
+  pe_size = li.tell() - xex_header.SizeOfHeaders
+  li.seek(xex_header.SizeOfHeaders)
+
+  pe_data = io.BytesIO()
+  pe_data.write(li.read(pe_size))
+
+  return pe_load(pe_data)
+
 def xex_read_uncompressed(li):
   global directory_entry_headers
   global directory_entries
-  global xex_blocks
   global xex_header
   global session_key
 
@@ -624,6 +738,7 @@ def xex_read_uncompressed(li):
   num_blocks = (data_descriptor.Size - 8) / 8
 
   # Read block descriptor structs
+  xex_blocks = []
   for i in range(0, num_blocks):
     block = read_struct(li, XEXRawBaseFileBlock)
     xex_blocks.append(block)
@@ -653,6 +768,7 @@ def xex_read_uncompressed(li):
   return pe_load(pe_data)
 
 def load_file(li, neflags, format):
+  global xex_magic
   global xex_header
   global directory_entry_headers
   global directory_entries
@@ -660,17 +776,24 @@ def load_file(li, neflags, format):
   global entry_point
   global image_key
 
-  if format != XEX2_FORMAT:
-    Warning("Unknown format name: '%s'" % format)
-    return 0
+  #if format != XEX2_FORMAT:
+  #  Warning("Unknown format name: '%s'" % format)
+  #  return 0
 
   idaapi.set_processor_type("ppc", idc.SETPROC_LOADER)
+  ida_typeinf.set_compiler_id(idc.COMP_MS)
 
-  print("[+] IDAPython XEX Loader 0.3 for IDA 7.0+ by emoose")
+  print("[+] IDAPython XEX Loader 0.4 for IDA 7.0+ by emoose")
 
   # Read XEX header & directory entry headers
   li.seek(0)
-  xex_header = read_struct(li, ImageXEXHeader)
+  xex_magic = li.read(4)
+  li.seek(0)
+  if xex_magic == _MAGIC_XEX3F:
+    xex_header = read_struct(li, ImageXEXHeader_3F)
+  else:
+    xex_header = read_struct(li, ImageXEXHeader)
+
   print(xex_header)
 
   directory_entry_headers = {}
@@ -679,9 +802,20 @@ def load_file(li, neflags, format):
     directory_entry_headers[dir_header.Key] = dir_header.Value
 
   # Read XEX SecurityInfo header
-  li.seek(xex_header.SecurityInfo)
-  xex_security_info = read_struct(li, XEX2SecurityInfo)
-  image_key = xex_security_info.ImageInfo.ImageKey
+  if xex_magic != _MAGIC_XEX3F:
+    li.seek(xex_header.SecurityInfo)
+
+    if xex_magic == _MAGIC_XEX32:
+      xex_security_info = read_struct(li, XEX2SecurityInfo)
+    elif xex_magic == _MAGIC_XEX31:
+      xex_security_info = read_struct(li, XEX1SecurityInfo)
+    elif xex_magic == _MAGIC_XEX25:
+      xex_security_info = read_struct(li, XEX25SecurityInfo)
+    elif xex_magic == _MAGIC_XEX2D:
+      xex_security_info = read_struct(li, XEX2DSecurityInfo)
+
+    if xex_magic != _MAGIC_XEX2D:
+      image_key = xex_security_info.ImageInfo.ImageKey
 
   # Try reading in XEX directory entry structures
   print("[+] Reading %d XEX directory entries / optional headers..." % xex_header.HeaderDirectoryEntryCount)
@@ -815,12 +949,12 @@ def load_file(li, neflags, format):
   # Try getting base address from directory entries
   # If not found we'll use the one from SecurityInfo
   # (not sure which is preferred... guess the optional header should override the always-present SecurityInfo one?)
-  base_address = xex_security_info.ImageInfo.LoadAddress
+  base_address = xex_security_info.ImageInfo.LoadAddress if xex_magic != _MAGIC_XEX3F else xex_header.LoadAddress
   if XEX_HEADER_PE_BASE in directory_entries:
     base_address = directory_entries[XEX_HEADER_PE_BASE]
 
   # Try reading in the basefile
-  if xex_read_image(li, 0) or xex_read_image(li, 1):
+  if xex_read_image(li, 0) or xex_read_image(li, 1) or xex_read_image(li, 2):
     # basefile loaded!
 
     # Setup imports if we have them
