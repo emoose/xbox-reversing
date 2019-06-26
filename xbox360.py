@@ -316,6 +316,9 @@ def xex_load_imports(li):
         idc.add_func(record_addr, record_addr + 0x10)
         idc.set_name(record_addr, import_name)
 
+        # add comment to thunk like xorloser's loader
+        idc.set_cmt(record_addr + 4, "%s :: %s" % (libname.rsplit('.', 1)[0], import_name), 1)
+
         # this should mark the func as a library function, but it doesn't do anything for some reason
         # tried a bunch of things like idaapi.autoWait() before running it, just crashes IDA with internal errors...
         idc.set_func_flags(record_addr, idc.get_func_flags(record_addr) | idc.FUNC_LIB)
