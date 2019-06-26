@@ -1,4 +1,4 @@
-# IDAPython XEX Loader 0.4 for IDA 7.0+ by emoose
+# IDAPython XEX Loader 0.5 for IDA 7.0+ by emoose
 # Based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
 # (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
 # --
@@ -8,17 +8,16 @@
 # This loader should support:
 # - encrypted & decrypted XEXs (as long as they're uncompressed)
 # - XEX2 (>=1888), XEX1 (>=1838), XEX% (>=1746), XEX- (>=1640) & XEX? (>=1529) formats
-# - loading imports from XEX headers ("XEX?" format stores imports in PE headers, which this doesn't read atm)
+# - loading imports & exports from XEX headers ("XEX?" format stores imports in PE headers, which this doesn't read atm)
 # --
 # TODO:
-# - exports
-# - mark imports in IDA imports window (how???)
+# - mark imports in IDA imports window (might be impossible in python - no import_module binding ...)
 # - read imports from PE headers if they exist
 # - compression support (important for XEX1 and lower, since there's no decompressors for those)
 # - relocations
 # - print more info to console (compression info, etc... should maybe print all structs to aid with RE?)
 # - name/comment XEX resources?
-# - find why IDA isn't marking strings & such inside data sections
+# - find why IDA sometimes isn't marking strings & such inside data sections
 # - test against more XEXs (todo: 1640, 1746)
 
 import io
@@ -63,6 +62,7 @@ image_key = b''
 session_key = b''
 directory_entry_headers = {}
 directory_entries = {}
+export_table_va = 0
 base_address = 0
 entry_point = 0
 
@@ -326,7 +326,50 @@ def xex_load_imports(li):
 
   return
 
+def xex_load_exports(li):
+  global export_table_va
+
+  export_table = HvImageExportTable()
+  slen = ctypes.sizeof(export_table)
+  bytes = ida_bytes.get_bytes(export_table_va, slen)
+  fit = min(len(bytes), slen)
+  ctypes.memmove(ctypes.addressof(export_table), bytes, fit)
+
+  if export_table.Magic[0] != 0x48000000 or export_table.Magic[1] != 0x00485645 or export_table.Magic[2] != 0x48000000:
+    print("[+] Export table magic is invalid! (0x%X 0x%X 0x%X)" % (export_table.Magic[0], export_table.Magic[1], export_table.Magic[2]))
+    return 0
+
+  ordinal_addrs_va = export_table_va + slen
+  for i in range(0, export_table.Count):
+    func_ord = export_table.Base + i
+    func_va = ida_bytes.get_dword(ordinal_addrs_va + (i * 4))
+    if func_va == 0:
+      continue
+
+    func_va = func_va | (export_table.ImageBaseAddress << 16)
+    func_name = x360_imports.DoNameGen("export", 0, func_ord)
+
+    # Add to exports list & mark as func
+    idc.add_entry(func_ord, func_va, func_name, 1)
+    idc.add_func(func_va)
+
+  return 1
+
 # XEX structs & enums
+XEX_EXPORT_MAGIC_0 = 0x48000000
+XEX_EXPORT_MAGIC_1 = 0x00485645
+XEX_EXPORT_MAGIC_2 = 0x48000000
+
+class HvImageExportTable(ctypes.BigEndianStructure):
+  _fields_ = [
+    ("Magic", uint32_t * 3),
+    ("ModuleNumber", uint32_t * 2),
+    ("Version", uint32_t * 3),
+    ("ImageBaseAddress", uint32_t),
+    ("Count", uint32_t),
+    ("Base", uint32_t),
+  ]
+
 class XEXImportDescriptor(ctypes.BigEndianStructure):
   _fields_ = [
     ("Size", uint32_t),
@@ -655,23 +698,6 @@ def read_xexstring(li):
   string = li.read(size)
   return string
 
-def accept_file(li, n):
-  li.seek(0)
-  magic = li.read(4)
-  if magic == _MAGIC_XEX32:
-    return _FORMAT_XEX32
-  if magic == _MAGIC_XEX31:
-    return _FORMAT_XEX31
-  if magic == _MAGIC_XEX25:
-    return _FORMAT_XEX25
-  if magic == _MAGIC_XEX2D:
-    return _FORMAT_XEX2D
-  if magic == _MAGIC_XEX3F:
-    return _FORMAT_XEX3F
-
-
-  return 0
-
 def xex_read_image(li, xex_key_index):
   global directory_entries
   global image_key
@@ -767,18 +793,34 @@ def xex_read_uncompressed(li):
 
   return pe_load(pe_data)
 
+def accept_file(li, n):
+  li.seek(0)
+  magic = li.read(4)
+  if magic == _MAGIC_XEX32:
+    return _FORMAT_XEX32
+  if magic == _MAGIC_XEX31:
+    return _FORMAT_XEX31
+  if magic == _MAGIC_XEX25:
+    return _FORMAT_XEX25
+  if magic == _MAGIC_XEX2D:
+    return _FORMAT_XEX2D
+  if magic == _MAGIC_XEX3F:
+    return _FORMAT_XEX3F
+
+  return 0
+
 def load_file(li, neflags, format):
   global xex_magic
-  global xex_header
   global directory_entry_headers
   global directory_entries
+  global export_table_va
   global base_address
   global entry_point
   global image_key
 
-  #if format != XEX2_FORMAT:
-  #  Warning("Unknown format name: '%s'" % format)
-  #  return 0
+  if format != _FORMAT_XEX32 and format != _FORMAT_XEX31 and format != _FORMAT_XEX25 and format != _FORMAT_XEX2D and format != _FORMAT_XEX3F:
+    Warning("Unknown format name: '%s'" % format)
+    return 0
 
   idaapi.set_processor_type("ppc", idc.SETPROC_LOADER)
   ida_typeinf.set_compiler_id(idc.COMP_MS)
@@ -814,6 +856,7 @@ def load_file(li, neflags, format):
     elif xex_magic == _MAGIC_XEX2D:
       xex_security_info = read_struct(li, XEX2DSecurityInfo)
 
+    export_table_va = xex_security_info.ImageInfo.ExportTableAddress
     if xex_magic != _MAGIC_XEX2D:
       image_key = xex_security_info.ImageInfo.ImageKey
 
@@ -960,6 +1003,9 @@ def load_file(li, neflags, format):
     # Setup imports if we have them
     if XEX_HEADER_IMPORTS in directory_entry_headers:
       xex_load_imports(li)
+
+    if export_table_va != 0:
+      xex_load_exports(li)
 
     # Done :)
     print("[+] XEX loaded, voila!")
