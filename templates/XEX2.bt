@@ -1,0 +1,251 @@
+//--------------------------------------
+//--- 010 Editor v9.0 Binary Template
+//
+// File:     XEX2.bt
+// Author:   Anthony, emoose
+// Revision: 1.5
+// Purpose:  Defines a template for parsing Xbox 360 Executables.
+// History:
+// 2010-02-10  Anthony  Initial version, a complete XEX2 reader
+// 2018-11-20  emoose   Update with proper XEX structs, more comments
+//                        & add support for older XEX variants
+//  Category: Executable
+// File Mask: *.xex,*.dll,*.exe,*.xexp,*.dllp,*.exep
+//  ID Bytes: 58 45 58 //XEX
+// Sources:
+// https://github.com/xemio/testdev/blob/master/xkelib/kernel/keXexInfo.h
+//--------------------------------------
+
+// Includes
+#include "XEX2FlagsAndEnums.bt"
+#include "XEX2OptionalHeaders.bt"
+#include "XEX2Functions.bt"
+
+// Basic settings for this template
+BigEndian();
+BitfieldRightToLeft();
+DisplayFormatHex();
+
+typedef struct {
+    DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
+    MODULEFLAGS ModuleFlags          <comment="Flags for this XEX">;
+    DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
+    DWORD SizeOfDiscardableHeaders   <comment="Size of headers that can be discarded after XEX load">;
+    DWORD SecurityInfo               <comment="Offset of XEX*_SECURITY_INFO struct",format=hex>;
+    DWORD HeaderDirectoryEntryCount  <comment="Number of directory entries">;
+} IMAGE_XEX_HEADER;
+
+typedef struct {
+    DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
+    MODULEFLAGS ModuleFlags          <comment="Flags for this XEX">;
+    DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
+    DWORD SizeOfDiscardableHeaders   <comment="Size of headers that can be discarded after XEX load">;
+    DWORD LoadAddress                <comment="Base address of the executable">;
+    DWORD Unknown14;
+    DWORD HeaderDirectoryEntryCount  <comment="Number of directory entries">;
+} IMAGE_XEX_3F_HEADER;
+
+typedef struct
+{
+    IMAGEKEYS Key;
+    DWORD Value;
+} IMAGE_XEX_DIRECTORY_ENTRY;
+
+// XEX2 security structs
+typedef struct
+{
+	  BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+	  DWORD InfoSize            <comment="Size of security info structure">;
+	  IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
+	  DWORD LoadAddress         <comment="Base address of the executable">;
+	  XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
+	  DWORD ImportTableCount    <comment="Number of import tables">;
+	  XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
+	  XEXKEY MediaID            <comment="Unique ID of this image">;
+	  XEXKEY ImageKey           <comment="Encryption key for the inner image">;
+	  DWORD ExportTableAddress  <comment="Virtual address of the export table">;
+	  XEXDIGEST HeaderHash      <comment="Hash of all XEX headers">;
+	  GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
+} XEX2_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    XEX2_HV_IMAGE_INFO ImageInfo;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX2_SECURITY_INFO;
+
+// XEX1 (<= 186x) security structs
+typedef struct
+{
+	  BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
+    XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
+    DWORD LoadAddress         <comment="Base address of the executable">;
+    XEXKEY ImageKey           <comment="Encryption key for the inner image">;
+    XEXKEY MediaID            <comment="Unique ID of this image">;
+    GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
+    IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
+    DWORD ExportTableAddress  <comment="Virtual address of the export table">;
+} XEX1_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    XEX1_HV_IMAGE_INFO ImageInfo;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX1_SECURITY_INFO;
+
+// XEX% (<= 1746) security structs
+typedef struct
+{
+	  BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST ImageHash        <comment="SHA-1 hash of the image page descriptors">;
+    XEXDIGEST ImportDigest     <comment="SHA-1 hash of import tables">;
+    DWORD LoadAddress          <comment="Base address of the executable">;
+    XEXKEY ImageKey            <comment="Encryption key for the inner image">;
+    IMAGEFLAGS ImageFlags      <comment="Inner executable related flags">;
+    DWORD ExportTableAddress   <comment="Virtual address of the export table">;
+} XEX_25_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    XEX_25_HV_IMAGE_INFO ImageInfo;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX_25_SECURITY_INFO;
+
+// XEX- (<= 1640) security structs
+// (little sketchy on the details for XEX-...)
+typedef struct
+{
+	  BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST ImageHash        <comment="SHA-1 hash of the image page descriptors">;
+    XEXDIGEST ImportDigest     <comment="SHA-1 hash of import tables">;
+    DWORD LoadAddress          <comment="Base address of the executable">;
+    IMAGEFLAGS ImageFlags      <comment="Inner executable related flags">;
+    DWORD ExportTableAddress   <comment="Virtual address of the export table">;
+    DWORD Unk;
+} XEX_2D_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    XEX_2D_HV_IMAGE_INFO ImageInfo;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX_2D_SECURITY_INFO;
+
+typedef struct
+{
+    DWORD Size : 28;
+    DWORD Info : 4;
+    BYTE DataDigest[0x14];
+} HV_PAGE_INFO;
+
+// Start mapping
+local char hasSecurityInfo = 1;
+
+local DWORD magic = ReadUInt(0);
+FSeek(0);
+
+if(magic == 0x5845583F) // XEX? (<=1529)
+{
+    IMAGE_XEX_3F_HEADER XexHeader;
+    hasSecurityInfo = 0;
+}
+else
+{
+    IMAGE_XEX_HEADER XexHeader;
+}
+
+IMAGE_XEX_DIRECTORY_ENTRY DirectoryEntries[XexHeader.HeaderDirectoryEntryCount];
+
+if(hasSecurityInfo)
+{
+    FSeek(XexHeader.SecurityInfo);
+    
+    // Read in correct security info struct for this XEX version
+    if(magic == 0x58455832)      // XEX2 (>=1888)
+    {
+        XEX2_SECURITY_INFO SecurityInfo;
+    }
+    else if(magic == 0x58455831) // XEX1 (<=186x)
+    {
+        XEX1_SECURITY_INFO SecurityInfo;
+    }
+    else if(magic == 0x58455825) // XEX% (<=1746)
+    {
+        XEX_25_SECURITY_INFO SecurityInfo;
+    }
+    else if(magic == 0x5845582D) // XEX- (<=1640)
+    {
+        XEX_2D_SECURITY_INFO SecurityInfo;
+    }
+
+    HV_PAGE_INFO PageDescriptors[SecurityInfo.PageDescriptorCount];
+}
+
+local int x, headerLen;
+for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
+{
+    headerLen = DirectoryEntries[x].Key & 0xFF;
+    if(headerLen <= 1)
+    {
+        // If its system flags go back and map it
+        if(DirectoryEntries[x].Key == SystemFlags)
+        {
+            FSeek(sizeof(IMAGE_XEX_HEADER) + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            SYSTEMFLAGS SystemFlags;
+        }
+
+        // Header is small enough to fit in the DIRECTORY_ENTRY struct
+        Printf("DirectoryEntries[%d]: 0x%X (%s) = 0x%08X\n", x, DirectoryEntries[x].Key, EnumToString(DirectoryEntries[x].Key), DirectoryEntries[x].Value);
+        continue;
+    }
+    Printf("DirectoryEntries[%d]: 0x%X (%s) @ 0x%08X\n", x, DirectoryEntries[x].Key, EnumToString(DirectoryEntries[x].Key), DirectoryEntries[x].Value);
+    
+    // Handle specific ones first
+    FSeek(DirectoryEntries[x].Value);
+    switch(DirectoryEntries[x].Key)
+    {
+        case HeaderSectionTable:   XEX2_RESOURCES               HeaderSectionTable;    break;
+        case FileDataDescriptor:   XEX2_FILE_DATA_DESCRIPTOR    FileDataDescriptor;    break;
+        case DeltaPatchDescriptor: XEX2_DELTA_PATCH_DESCRIPTOR  DeltaPatchDescriptor;  break;
+        case BoundingPath:         XEXSTRING                    BoundingPath;          break;
+        case Imports:              XEX2_IMPORT_DESCRIPTOR       Imports;               break;
+        case Imports_OldKey:       XEX2_IMPORT_DESCRIPTOR       Imports;               break;
+        case VitalStats:           XEX2_VITAL_STATS             VitalStats;            break;
+        case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
+        case PEModuleName:         XEXSTRING                    PEModuleName;          break;
+        case BuildVersions:        XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
+        case TLSData:              XEX2_TLS_DATA                TLSData;               break;
+        case ExecutionID:          XEX2_EXECUTION_ID            ExecutionID;           break;
+        case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
+        case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
+        case LANKey:               XEXKEY                       LANKey;                break;
+        case MicrosoftLogo:        XEX2_MSLOGO                  MicrosoftLogo;         break;
+        case PEExports:            IMAGE_DATA_DIRECTORY         PEExports;             break;
+        case PEExports_OldKey:     IMAGE_DATA_DIRECTORY         PEExports;             break;
+        default:
+            if(headerLen == 0xFF)
+                OPTIONALHEADERDATA optData;
+            else
+            {
+                Printf("DirectoryEntries[%d]: unknown key 0x%X (%s) @ 0x%08X\n", x, DirectoryEntries[x].Key, EnumToString(DirectoryEntries[x].Key), DirectoryEntries[x].Value);
+                struct IMAGE_DIRECTORY_DATA { DWORD Data[headerLen]; } data; 
+            }
+            break;
+    }
+}
+
+local int peSize = FileSize() - XexHeader.SizeOfHeaders;
+FSeek(XexHeader.SizeOfHeaders);
+if(peSize > 0)
+    CHAR peData[FileSize() - XexHeader.SizeOfHeaders];

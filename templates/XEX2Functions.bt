@@ -1,0 +1,35 @@
+//--------------------------------------
+//--- 010 Editor v3.0.5 Binary Template
+//
+// File:     XEX2Functions.bt
+// Author:   Anthony
+// Revision: 1.0
+// Purpose:  Defines functions used
+//--------------------------------------
+string ReadXEXDIGEST( XEXDIGEST &d ) {
+    string s; int x;
+    for(x = 0; x < 0x14; x++) SPrintf( s, "%s%02X", s, d[x] & 0xFF ); 
+    return s;
+}
+string ReadXEXKEY( XEXKEY &k ) {
+    string s; int x;
+    for(x = 0; x < 0x10; x++) SPrintf( s, "%s%02X", s, k[x] & 0xFF ); 
+    return s;
+}
+string ReadXEXSTRING( XEXSTRING &x ) { return x.String; }
+string ReadOPTIONALHEADER( OPTIONALHEADER &a ) {
+    string s;
+    SPrintf( s, "0x%08X - 0x%08X", a.ID, a.Data );
+    return s;
+}
+string ReadLIBRARY( XEXIMAGE_LIBRARY_VERSION &a ) {
+    string s;
+    SPrintf( s, "%s %d.%d.%d.%d [%s]", a.LibraryName, a.Version.Major, a.Version.Minor, 
+        a.Version.Build, a.Version.QFE, EnumToString(a.Version.ApprovalType) );
+    return s;
+}
+string ReadVERSION( VERSION &v ) {
+    string s;
+    SPrintf( s, "%d.%d.%d.%d", v.Major, v.Minor, v.Build, v.QFE );
+    return s;
+}

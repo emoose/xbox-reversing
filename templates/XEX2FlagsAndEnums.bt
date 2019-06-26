@@ -1,0 +1,190 @@
+//--------------------------------------
+//--- 010 Editor v3.0.5 Binary Template
+//
+// File:     XEX2FlagsAndEnums.bt
+// Author:   Anthony
+// Revision: 1.0
+// Purpose:  Defines basic flags and enums
+//--------------------------------------
+enum IMAGEKEYS {
+    HeaderSectionTable          = 0x000002FF,
+    FileDataDescriptor          = 0x000003FF,
+    BaseReference               = 0x00000405,
+    DeltaPatchDescriptor        = 0x000005FF,
+    KeyVaultPrivs               = 0x000040FF,
+    TimeRange                   = 0x000041FF,
+    ConsoleIdTable              = 0x000042FF,
+    BoundingPath                = 0x000080FF,
+    PEExports_OldKey            = 0x00008102,
+    DeviceId                    = 0x00008105,
+    OriginalBaseAddress         = 0x00010001,
+    EntryPoint                  = 0x00010100,
+    PEBase                      = 0x00010201,
+    Imports_OldKey              = 0x000102FF,
+    Imports                     = 0x000103FF,
+    VitalStats                  = 0x00018002,
+    CallcapImports              = 0x00018102,
+    FastcapEnabled              = 0x00018200,
+    PEModuleName                = 0x000183FF,
+    BuildVersions               = 0x000200FF,
+    TLSData                     = 0x00020104,
+    StackSize                   = 0x00020200,
+    FSCacheSize                 = 0x00020301,
+    XapiHeapSize                = 0x00020401,
+    PageHeapSizeFlags           = 0x00028002,
+    SystemFlags                 = 0x00030000,
+    ExecutionID                 = 0x00040006,
+    ServiceIDList               = 0x000401FF,
+    WorkspaceSize               = 0x00040201,
+    GameRatings                 = 0x00040310,
+    LANKey                      = 0x00040404,
+    MicrosoftLogo               = 0x000405FF,
+    MultidiskMediaIDs           = 0x000406FF,
+    AlternateTitleIDs           = 0x000407FF,
+    AdditionalTitleMemory       = 0x00040801,
+    PEExports                   = 0x00E10402
+};
+
+typedef struct MODULEFLAGS {
+    DWORD  TitleProcess  : 1;
+    DWORD  TitleImports  : 1;
+    DWORD  Debugger      : 1;
+    DWORD  Dll           : 1;
+    DWORD  Patch         : 1;
+    DWORD  PatchFull     : 1;
+    DWORD  PatchDelta    : 1;
+    DWORD  UserMode      : 1;
+    DWORD                : 22;
+    DWORD  BoundPath     : 1;
+    DWORD  SilentLoad    : 1;
+};
+
+typedef struct ALLOWEDMEDIATYPES {
+    DWORD   HardDisk                    : 1; //= 0x00000001
+    DWORD   DvdX2                       : 1; //= 0x00000002
+    DWORD   DvdCd                       : 1; //= 0x00000004
+    DWORD   Dvd5                        : 1; //= 0x00000008
+    DWORD   Dvd9                        : 1; //= 0x00000010
+    DWORD   SystemFlash                 : 1; //= 0x00000020
+    DWORD                               : 1; //= 0x00000040
+    DWORD   MemoryUnit                  : 1; //= 0x00000080
+    DWORD   MassStorageDevice           : 1; //= 0x00000100
+    DWORD   SmbFilesystem               : 1; //= 0x00000200
+    DWORD   DirectFromRam               : 1; //= 0x00000400
+    DWORD                               : 1; //= 0x00000800
+    DWORD   SecureVirtualOpticalDevice  : 1; //= 0x00001000
+    DWORD   WirelessNStorageDevice      : 1; //= 0x00002000
+    DWORD                               : 10;//= 0x00004000-0x00800000
+    DWORD   InsecurePackage             : 1; //= 0x01000000
+    DWORD   SaveGamePackage             : 1; //= 0x02000000
+    DWORD   LocallySignedPackage        : 1; //= 0x04000000
+    DWORD   LiveSignedPackage           : 1; //= 0x08000000
+    DWORD   XboxPlatformPackage         : 1; //= 0x10000000
+};
+
+typedef struct IMAGEFLAGS {
+    DWORD   RevocationCheckRequired    : 1; //= 0x00000001
+    DWORD   ManufacturingUtility       : 1; //= 0x00000002
+    DWORD   ManufacturingSupportTool   : 1; //= 0x00000004
+         // ManufacturingAwareModule          = 0x00000006 
+    DWORD   Xgd2MediaOnly              : 1; //= 0x00000008
+    DWORD                              : 4; //= 0x00000010-0x00000080
+    DWORD   CardeaKey                  : 1; //= 0x00000100
+    DWORD   XeikaKey                   : 1; //= 0x00000200
+    DWORD   TitleUserMode              : 1; //= 0x00000400
+    DWORD   SystemUserMode             : 1; //= 0x00000800
+    DWORD   Orange0                    : 1; //= 0x00001000
+    DWORD   Orange1                    : 1; //= 0x00002000
+    DWORD   Orange2                    : 1; //= 0x00004000
+    DWORD                              : 1; //= 0x00008000
+    DWORD   IptvSignupApplication      : 1; //= 0x00010000
+    DWORD   IptvTitleApplication       : 1; //= 0x00020000
+    DWORD                              : 8; //= 0x00040000-0x02000000
+    DWORD   KeyVaultPrivilegesRequired : 1; //= 0x04000000
+    DWORD   OnlineActivationRequired   : 1; //= 0x08000000
+    DWORD   PageSize4Kb                : 1; //= 0x10000000
+    DWORD   NoGameRegion               : 1; //= 0x20000000
+    DWORD   RevocationCheckOptional    : 1; //= 0x40000000
+    DWORD   RevocationCheckRequired    : 1; //= 0x80000000
+};
+
+typedef struct SYSTEMFLAGS {
+    DWORD   NoForceReboot                   : 1; //= 0x00000001
+    DWORD   ForegroundTasks                 : 1; //= 0x00000002
+    DWORD   NoOddMapping                    : 1; //= 0x00000004
+    DWORD   HandleMceInput                  : 1; //= 0x00000008
+    DWORD   RestrictHudFeatures             : 1; //= 0x00000010
+    DWORD   HandleGamepadDisconnect         : 1; //= 0x00000020
+    DWORD   InsecureSockets                 : 1; //= 0x00000040
+    DWORD   Xbox1XspInterop                 : 1; //= 0x00000080
+    DWORD   SetDashContext                  : 1; //= 0x00000100
+    DWORD   TitleUsesGameVoiceChannel       : 1; //= 0x00000200
+    DWORD   TitlePal50Incompatible          : 1; //= 0x00000400
+    DWORD   TitleInsecureUtilitydrive       : 1; //= 0x00000800
+    DWORD   TitleXamHooks                   : 1; //= 0x00001000
+    DWORD   TitlePii                        : 1; //= 0x00002000
+    DWORD   CrossplatformSystemLink         : 1; //= 0x00004000
+    DWORD   MultidiscSwap                   : 1; //= 0x00008000
+    DWORD   MultidiscInsecureMedia          : 1; //= 0x00010000
+    DWORD   Ap25Media                       : 1; //= 0x00020000
+    DWORD   NoConfirmExit                   : 1; //= 0x00040000
+    DWORD   AllowBackgroundDownload         : 1; //= 0x00080000
+    DWORD   CreatePersistableRamdrive       : 1; //= 0x00100000
+    DWORD   InheritPersistedRamdrive        : 1; //= 0x00200000
+    DWORD   AllowHudVibration               : 1; //= 0x00400000
+    DWORD   TitleBothUtilityPartitions      : 1; //= 0x00800000
+    DWORD   HandleIPTVInput                 : 1; //= 0x01000000
+    DWORD   PreferBigbuttonInput            : 1; //= 0x02000000
+    DWORD   Reserved26                      : 1; //= 0x04000000
+    DWORD   MultidiscCrossTitle             : 1; //= 0x08000000
+    DWORD   TitleInstallIncompatible        : 1; //= 0x10000000
+    DWORD   AllowAvatarGetMetadataByXUID    : 1; //= 0x20000000
+    DWORD   AllowControllerSwapping         : 1; //= 0x40000000
+    DWORD   DashExtensibilityModule         : 1; //= 0x80000000
+    /* These next ones dont even fit into a DWORD?
+    DWORD   AllowNetworkReadCancel          : 1; //= 0x100000000
+    DWORD   UninterruptableReads            : 1; //= 0x200000000
+    DWORD   RequireExperienceFull           : 1; //= 0x400000000
+    DWORD   GameVoiceRequiredUI             : 1; //= 0x800000000
+    DWORD   TitleSetPresenceString          : 1;
+    DWORD   NatalTiltControl                : 1;
+    DWORD   TitleRequiresSkeletalTracking   : 1;
+    DWORD   TitleSupportsSkeletalTracking   : 1;
+    DWORD   UseLargeHDsFileCache            : 1;
+    DWORD   TitleSupportsDeepLink           : 1;
+    DWORD   TitleBodyProfile                : 1;
+    DWORD   TitleWinUSB                     : 1;
+    DWORD   TitleSupportsDeepLinkRefresh    : 1;
+    DWORD   LocalOnlySockets                : 1;
+    DWORD   TitleContentAcquireAndDownload  : 1;
+    */
+};
+
+enum GAMEREGIONS{
+    NorthAmerica        = 0x000000FF,
+    Japan               = 0x00000100,
+    China               = 0x00000200,
+    RestOfAsia          = 0x0000FC00,
+    AustraliaNewZealand = 0x00010000,
+    RestOfEurope        = 0x00FE0000,
+    RestOfWord          = 0xFF000000,
+    AllRegions          = 0xFFFFFFFF
+};
+
+enum<SHORT> ENCRYPTIONTYPE{ 
+    NotEncrypted    = 0x0000, 
+    Encrypted       = 0x0001
+};
+
+enum<SHORT> COMPRESSIONTYPE{ 
+    NotCompressed   = 0x0001,
+    Compressed      = 0x0002,
+    DeltaCompressed = 0x0003 
+};
+
+enum<BYTE> APPROVALTYPE{
+    Unapproved       = 0x00,
+    PossibleApproved = 0x20,
+    Approved         = 0x40,
+    Expired          = 0x60
+};
