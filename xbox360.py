@@ -287,13 +287,11 @@ def xex_load_imports(li):
     else:
       cur_lib += name_char
 
-  # read in each import library
-  import_libs = []
+  # read each import library table
   for i in range(0, import_desc.ModuleCount):
     table_addr = li.tell()
     table_header = read_struct(li, XEXImportTable)
     libname = import_libnames[table_header.ModuleIndex]
-    import_table = []
     variables = {}
     for i in range(0, table_header.ImportCount):
       record_addr = read_dwordBE(li)
