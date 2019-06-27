@@ -1,4 +1,4 @@
-# IDAPython XEX Loader 0.6 for IDA 7.0+ by emoose
+# IDAPython XEX Loader 0.6a for IDA 7.0+ by emoose
 # Based on work by the Xenia project, XEX2.bt by Anthony, xextool 0.1 by xor37h, x360_imports.idc by xorloser, xkelib...
 # (currently only works on uncompressed XEXs, use "xextool -cu xexfile.xex" beforehand!)
 # --
@@ -289,12 +289,12 @@ def xex_load_imports(li):
 
   # read in each import library
   import_libs = []
-  variables = {}
   for i in range(0, import_desc.ModuleCount):
     table_addr = li.tell()
     table_header = read_struct(li, XEXImportTable)
     libname = import_libnames[table_header.ModuleIndex]
     import_table = []
+    variables = {}
     for i in range(0, table_header.ImportCount):
       record_addr = read_dwordBE(li)
 
