@@ -6,6 +6,8 @@
 // Author:   Anthony, emoose
 // Revision: 1.5
 // Purpose:  Make it easier to navigate an Xbox 360 content package
+// File Mask: *
+// ID Bytes: 43 4F 4E 20, 4C 49 56 45, 50 49 52 53 // CON, LIVE, PIRS
 // History:
 // 2010-10-01  Anthony  Initial version
 // 2018-11-20  emoose   Update with more structs (i.e. INSTALLER_METADATA)
@@ -438,6 +440,7 @@ typedef struct _STF_DIRECTORY_BLOCK
 // Map our our XCONTENT file header
 XCONTENT_HEADER   Header;
 XCONTENT_METADATA Metadata;
+
 
 int64 StfComputeBackingDataBlockNumber(DWORD BlockNumber)
 {

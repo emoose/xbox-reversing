@@ -1,0 +1,91 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.1 Binary Template
+//
+//      File: recctrl.bt
+//   Authors: emoose
+//   Version: 1.0
+//   Purpose: Allows reading recctrl.bin files from Xbox/Xbox360 devkit ISO-recoveries
+//  Category: 
+//   History: 
+//------------------------------------------------
+
+typedef QWORD ULONG64;
+typedef QWORD LONGLONG;
+
+struct MSSTRING
+{
+  WORD Size;
+  CHAR String[Size];
+  
+  local uint pos = FTell();
+  if(pos & 1 == 1) {
+    CHAR padding;
+  }
+};
+
+local DWORD idx = 0;
+local DWORD addr = 0;
+typedef struct
+{
+  WORD VersionIndex;
+  WORD DeviceIndex;
+  DWORD Length;
+  FILETIME Timestamp; // 0x8
+  MSSTRING Path; // 0x10
+  
+  // Read in LZX block size array, terminated with 0-size block
+  // Only block compressed-sizes are stored in recctrl - decompressed-size seems to always be 0x8000
+  local WORD testWord = -1;
+  local DWORD totalWord = 0;
+  while(testWord != 0)
+  {	
+    WORD BlockCompressedSize;
+	testWord = BlockCompressedSize;
+	totalWord += testWord;
+  }
+  
+  // Final LZX block information
+  // DecSize likely included here since the final block probably won't decompress to 0x8000 bytes
+  WORD FinalBlockDecSize;
+  WORD BlockCompressedSize; // Call it BlockCompressedSize so 010 will add it to BlockCompressedSize array
+  testWord = BlockCompressedSize;
+  totalWord += testWord;
+  
+  Printf("File %d at 0x%x (size: %x)\n", idx, addr, totalWord);
+  
+  idx++;
+  addr += totalWord;
+  
+} RECENTRY<read=ReadRECENTRY>;
+
+string ReadRECENTRY( RECENTRY &d ) {
+    string s;
+	if(d.VersionIndex > 0) {
+	  s += Version[d.VersionIndex - 1].String;
+	} else {
+	  s += "ALL";
+	}
+	s += Device[d.DeviceIndex].Path.String;
+	s += "\\";
+	s += d.Path.String; 
+    return s;
+}
+
+WORD VersionCount;
+local int i = 0;
+for (i = 0; i < VersionCount - 1; i++)
+  MSSTRING Version <hidden=true>; // Have to read in Versions like this since Version[VersionCount - 1] seems to cause issues...
+  
+struct RECDEVICE
+{
+  MSSTRING Name;
+  MSSTRING Path;
+};
+WORD DeviceCount;
+for (i = 0; i < DeviceCount; i++)
+  RECDEVICE Device <hidden=true>; // Have to read in Device like this since Device[DeviceCount] causes issues
+
+DWORD LzxWindowSize;
+
+while(FTell() < FileSize())
+  RECENTRY Entry;
