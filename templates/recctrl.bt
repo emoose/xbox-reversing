@@ -38,10 +38,10 @@ typedef struct
   local WORD testWord = -1;
   local DWORD totalWord = 0;
   while(testWord != 0)
-  {	
+  {
     WORD BlockCompressedSize;
-	testWord = BlockCompressedSize;
-	totalWord += testWord;
+    testWord = BlockCompressedSize;
+    totalWord += testWord;
   }
   
   // Final LZX block information
@@ -59,16 +59,16 @@ typedef struct
 } RECENTRY<read=ReadRECENTRY>;
 
 string ReadRECENTRY( RECENTRY &d ) {
-    string s;
-	if(d.VersionIndex > 0) {
-	  s += Version[d.VersionIndex - 1].String;
-	} else {
-	  s += "ALL";
-	}
-	s += Device[d.DeviceIndex].Path.String;
-	s += "\\";
-	s += d.Path.String; 
-    return s;
+  string s;
+  if(d.VersionIndex > 0) {
+    s += Version[d.VersionIndex - 1].String;
+  } else {
+    s += "ALL";
+  }
+  s += Device[d.DeviceIndex].Path.String;
+  s += "\\";
+  s += d.Path.String; 
+  return s;
 }
 
 WORD VersionCount;
