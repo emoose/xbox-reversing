@@ -198,11 +198,16 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
     headerLen = DirectoryEntries[x].Key & 0xFF;
     if(headerLen <= 1)
     {
-        // If its system flags go back and map it
-        if(DirectoryEntries[x].Key == SystemFlags)
+        // If its privileges go back and map it
+        if(DirectoryEntries[x].Key == Privileges)
         {
             FSeek(sizeof(IMAGE_XEX_HEADER) + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
-            SYSTEMFLAGS SystemFlags;
+            XEX_PRIVILEGES Privileges;
+        }
+        if(DirectoryEntries[x].Key == Privileges_32)
+        {
+            FSeek(sizeof(IMAGE_XEX_HEADER) + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            XEX_PRIVILEGES_32 Privileges_32;
         }
 
         // Header is small enough to fit in the DIRECTORY_ENTRY struct

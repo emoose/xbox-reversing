@@ -35,7 +35,9 @@ enum IMAGEKEYS {
     FSCacheSize                 = 0x00020301,
     XapiHeapSize                = 0x00020401,
     PageHeapSizeFlags           = 0x00028002,
-    SystemFlags                 = 0x00030000,
+    Privileges                  = 0x00030000,
+    Privileges_32               = 0x00030100, // privilege IDs 32 onward
+    Privileges_64               = 0x00030100, // privilege IDs 64 onward
     ExecutionID                 = 0x00040006,
     ServiceIDList               = 0x000401FF,
     WorkspaceSize               = 0x00040201,
@@ -117,7 +119,7 @@ typedef struct IMAGEFLAGS {
     DWORD   RevocationCheckRequired    : 1; //= 0x80000000
 };
 
-typedef struct SYSTEMFLAGS {
+typedef struct XEX_PRIVILEGES {
     DWORD   NoForceReboot                   : 1; //= 0x00000001
     DWORD   ForegroundTasks                 : 1; //= 0x00000002
     DWORD   NoOddMapping                    : 1; //= 0x00000004
@@ -150,24 +152,25 @@ typedef struct SYSTEMFLAGS {
     DWORD   AllowAvatarGetMetadataByXUID    : 1; //= 0x20000000
     DWORD   AllowControllerSwapping         : 1; //= 0x40000000
     DWORD   DashExtensibilityModule         : 1; //= 0x80000000
-    /* These next ones dont even fit into a DWORD?
-    DWORD   AllowNetworkReadCancel          : 1; //= 0x100000000
-    DWORD   UninterruptableReads            : 1; //= 0x200000000
-    DWORD   RequireExperienceFull           : 1; //= 0x400000000
-    DWORD   GameVoiceRequiredUI             : 1; //= 0x800000000
-    DWORD   TitleSetPresenceString          : 1;
-    DWORD   NatalTiltControl                : 1;
-    DWORD   TitleRequiresSkeletalTracking   : 1;
-    DWORD   TitleSupportsSkeletalTracking   : 1;
-    DWORD   UseLargeHDsFileCache            : 1;
-    DWORD   TitleSupportsDeepLink           : 1;
-    DWORD   TitleBodyProfile                : 1;
-    DWORD   TitleWinUSB                     : 1;
-    DWORD   TitleSupportsDeepLinkRefresh    : 1;
-    DWORD   LocalOnlySockets                : 1;
-    DWORD   TitleContentAcquireAndDownload  : 1;
-    DWORD   AllowSystemForeground           : 1;
-    */
+};
+
+typedef struct XEX_PRIVILEGES_32 {
+    DWORD   AllowNetworkReadCancel          : 1; //= 0x00000001
+    DWORD   UninterruptableReads            : 1; //= 0x00000002
+    DWORD   RequireExperienceFull           : 1; //= 0x00000004
+    DWORD   GameVoiceRequiredUI             : 1; //= 0x00000008
+    DWORD   TitleSetPresenceString          : 1; //= 0x00000010
+    DWORD   NatalTiltControl                : 1; //= 0x00000020
+    DWORD   TitleRequiresSkeletalTracking   : 1; //= 0x00000040
+    DWORD   TitleSupportsSkeletalTracking   : 1; //= 0x00000080
+    DWORD   UseLargeHDsFileCache            : 1; //= 0x00000100
+    DWORD   TitleSupportsDeepLink           : 1; //= 0x00000200
+    DWORD   TitleBodyProfile                : 1; //= 0x00000400
+    DWORD   TitleWinUSB                     : 1; //= 0x00000800
+    DWORD   TitleSupportsDeepLinkRefresh    : 1; //= 0x00001000
+    DWORD   LocalOnlySockets                : 1; //= 0x00002000
+    DWORD   TitleContentAcquireAndDownload  : 1; //= 0x00004000
+    DWORD   AllowSystemForeground           : 1; //= 0x00008000
 };
 
 enum GAMEREGIONS{
