@@ -231,7 +231,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
         case LANKey:               XEXKEY                       LANKey;                break;
         case MicrosoftLogo:        XEX2_MSLOGO                  MicrosoftLogo;         break;
-        case PEExports:            IMAGE_DATA_DIRECTORY         PEExports;             break;
+        case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
         case PEExports_OldKey:     IMAGE_DATA_DIRECTORY         PEExports;             break;
         default:
             if(headerLen == 0xFF)

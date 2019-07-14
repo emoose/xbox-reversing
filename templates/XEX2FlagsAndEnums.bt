@@ -11,9 +11,12 @@ enum IMAGEKEYS {
     FileDataDescriptor          = 0x000003FF,
     BaseReference               = 0x00000405,
     DeltaPatchDescriptor        = 0x000005FF,
+    KeyVaultPrivs_Alt           = 0x00004004,
     KeyVaultPrivs               = 0x000040FF,
+    TimeRange_Alt               = 0x00004104,
     TimeRange                   = 0x000041FF,
     ConsoleIdTable              = 0x000042FF,
+    DiscProfileID               = 0x00004304,
     BoundingPath                = 0x000080FF,
     PEExports_OldKey            = 0x00008102,
     DeviceId                    = 0x00008105,
@@ -42,7 +45,9 @@ enum IMAGEKEYS {
     MultidiskMediaIDs           = 0x000406FF,
     AlternateTitleIDs           = 0x000407FF,
     AdditionalTitleMemory       = 0x00040801,
-    PEExports                   = 0x00E10402
+    ImportsByName               = 0x00E10302,
+    ExportsByName               = 0x00E10402,
+    UserModeImportDeps          = 0x00E105FF,
 };
 
 typedef struct MODULEFLAGS {
