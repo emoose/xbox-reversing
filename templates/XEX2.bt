@@ -10,7 +10,7 @@
 // 2018-11-20  emoose   Update with proper XEX structs, more comments
 //                        & add support for older XEX variants
 //  Category: Executable
-// File Mask: *.xex,*.dll,*.exe,*.xexp,*.dllp,*.exep
+// File Mask: *.xex,*.dll,*.exe,*.lex,*.xexp,*.dllp,*.exep
 //  ID Bytes: 58 45 58 //XEX
 // Sources:
 // https://github.com/xemio/testdev/blob/master/xkelib/kernel/keXexInfo.h

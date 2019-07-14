@@ -74,7 +74,9 @@ typedef struct ALLOWEDMEDIATYPES {
     DWORD                               : 1; //= 0x00000800
     DWORD   SecureVirtualOpticalDevice  : 1; //= 0x00001000
     DWORD   WirelessNStorageDevice      : 1; //= 0x00002000
-    DWORD                               : 10;//= 0x00004000-0x00800000
+    DWORD   SystemExtendedPartition     : 1; //= 0x00004000
+    DWORD   SystemAuxillaryPartition    : 1; //= 0x00008000
+    DWORD                               : 8; //= 0x00010000-0x00800000
     DWORD   InsecurePackage             : 1; //= 0x01000000
     DWORD   SaveGamePackage             : 1; //= 0x02000000
     DWORD   LocallySignedPackage        : 1; //= 0x04000000
