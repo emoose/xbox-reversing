@@ -21,4 +21,4 @@ This folder contains templates for use with [010 Editor](https://www.sweetscape.
 Templates can be installed by opening Options -> Compiling -> Templates, clicking "Add..." and then choosing the template to install, which should make 010 Editor automatically load the template when opening a supported file.
 
 ## License
-All code is licensed under GPLv3 unless otherwise stated.
+All code is licensed under the 3-Clause BSD License unless otherwise stated.
