@@ -37,7 +37,7 @@ enum IMAGEKEYS {
     PageHeapSizeFlags           = 0x00028002,
     Privileges                  = 0x00030000,
     Privileges_32               = 0x00030100, // privilege IDs 32 onward
-    Privileges_64               = 0x00030100, // privilege IDs 64 onward
+    Privileges_64               = 0x00030200, // privilege IDs 64 onward
     ExecutionID                 = 0x00040006,
     ServiceIDList               = 0x000401FF,
     WorkspaceSize               = 0x00040201,
