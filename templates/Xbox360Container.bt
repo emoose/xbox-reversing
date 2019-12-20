@@ -439,8 +439,12 @@ typedef struct _STF_DIRECTORY_BLOCK
 
 // Map our our XCONTENT file header
 XCONTENT_HEADER   Header;
-XCONTENT_METADATA Metadata;
+if(Header.SizeOfHeaders == 0)
+{
+    return; // No metadata in this file, maybe GfWL .lic?
+}
 
+XCONTENT_METADATA Metadata;
 
 int64 StfComputeBackingDataBlockNumber(DWORD BlockNumber)
 {

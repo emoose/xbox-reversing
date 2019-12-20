@@ -1,0 +1,638 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.1 Binary Template
+//
+//      File: XDBF.bt
+//   Authors: emoose
+//   Version: 1.0
+//   Purpose: Template for XDBF (Xbox Data Base File)-type files, such as GPD & SPA
+//  Category: 
+// File Mask: *.gpd,*.spa,*.xdbf
+//  ID Bytes: 58 44 42 46, 46 42 44 58
+//   History: 
+//------------------------------------------------
+
+// Detect endianness
+DWORD magic <hidden=true>;
+if(magic != 0x58444246)
+    BigEndian();
+FSeek(0);
+
+// Only set these after setting endianness!
+BitfieldRightToLeft();
+DisplayFormatHex();
+
+enum<WORD> PROFILEFILE_NAMESPACE {
+    PROFILEFILE_NAMESPACE_ACHIEVEMENTS = 1,
+    PROFILEFILE_NAMESPACE_IMAGES = 2,
+    PROFILEFILE_NAMESPACE_SETTINGS = 3,
+    PROFILEFILE_NAMESPACE_TITLES = 4,
+    PROFILEFILE_NAMESPACE_STRINGS = 5,
+    PROFILEFILE_NAMESPACE_PROTECTED = 6 // GFWL-only AchievementProtectedRecord, data protected with XLiveProtectData
+};
+
+enum<WORD> SPAFILE_NAMESPACE {
+    SPAFILE_NAMESPACE_METADATA = 1,
+    SPAFILE_NAMESPACE_IMAGES = 2,
+    SPAFILE_NAMESPACE_STRINGTABLES = 3
+};
+
+typedef struct XDBF_HEADER { // DataFileHeader
+    DWORD dwSig;
+    DWORD dwVersion;
+    DWORD dwEntryMax;
+    DWORD dwEntryCurrent;
+    DWORD dwFreeMax;
+    DWORD dwFreeCurrent;
+};
+
+typedef struct XDBF_ENTRY {
+    union {
+        SPAFILE_NAMESPACE Spa;
+        PROFILEFILE_NAMESPACE Gpd;
+    } wType;
+    QWORD qwId;
+    DWORD dwOffset;
+    DWORD dwSize;
+};
+
+typedef struct XDBF_FREE { // DataFileEntry / FileLoc
+    DWORD dwOffset;
+    DWORD dwSize;
+};
+
+enum<DWORD> XACHIEVEMENT_TYPE {
+    XACHIEVEMENT_TYPE_COMPLETION = 1,
+    XACHIEVEMENT_TYPE_LEVELING = 2,
+    XACHIEVEMENT_TYPE_UNLOCK = 3,
+    XACHIEVEMENT_TYPE_EVENT = 4,
+    XACHIEVEMENT_TYPE_TOURNAMENT = 5,
+    XACHIEVEMENT_TYPE_CHECKPOINT = 6,
+    XACHIEVEMENT_TYPE_OTHER = 7
+};
+
+enum<DWORD> XACHIEVEMENT_DETAILS_PLATFORM {
+    X360 = 0x1,    // 0x100000 
+    PC = 0x2,      // 0x200000 
+    Mobile = 0x3,  // 0x300000 
+    WebGames = 0x4 // 0x400000 
+};
+
+// this union will probably only work in 010 editor...
+typedef union XACHIEVEMENT_FLAGS {
+    struct {
+        XACHIEVEMENT_TYPE Type : 3;
+        DWORD : 17;
+        XACHIEVEMENT_DETAILS_PLATFORM Platform : 3;
+        DWORD : 9;
+    } Types;
+    struct {
+        DWORD : 3; // XACHIEVEMENT_TYPE
+        DWORD ShowUnachieved   : 1; // 0x8     (if not set, achievement is hidden until unlocked)
+        DWORD : 12;
+        DWORD AchievedOnline   : 1; // 0x10000  
+        DWORD Achieved         : 1; // 0x20000  
+        DWORD NotAchievable    : 1; // 0x40000 (aka AchievementRevoked)
+        DWORD WasNotAchievable : 1; // 0x80000 (cancels out the other flag?)
+
+        DWORD : 3; // XACHIEVEMENT_DETAILS_PLATFORM - not set inside SPA flags, gets set when copied from SPA -> GPD
+        DWORD : 1;
+        DWORD Colorizable      : 1; // 0x1000000 (avatar-award only?)
+        DWORD : 7;
+    } Flags;
+    DWORD AsDword;
+};
+
+typedef struct XACHIEVEMENT_DETAILS { // aka AchievementRecordHeader
+    DWORD cb; // magic 0x1C, aka size of this struct without strings
+    DWORD dwId;
+    DWORD dwImageId;
+    DWORD dwCred; // Gamerscore
+    XACHIEVEMENT_FLAGS dwFlags;
+    FILETIME ftAchieved;
+    wstring wszLabel;
+    wstring wszDescription;
+    wstring wszUnachieved; // might be Achieved instead?
+};
+
+typedef struct XAVATAR_AWARDS_COUNTER { 
+    BYTE bEarned;
+    BYTE bPossible;
+};
+
+typedef struct XUSER_TITLE_PLAYED { // TitlePlayedRecord
+    DWORD dwTitleId;
+    DWORD dwAchievementsPossible;
+    DWORD dwAchievementsEarned;
+    DWORD dwCredPossible;
+    DWORD dwCredEarned;
+    WORD wReservedAchievementCount; // NumAchievementsAtLastSync?
+    XAVATAR_AWARDS_COUNTER AllAvatarAwards;
+    XAVATAR_AWARDS_COUNTER MaleAvatarAwards;
+    XAVATAR_AWARDS_COUNTER FemaleAvatarAwards;
+    DWORD dwReservedFlags; // Some kind of flags + the NOT of how many achievements need to be synced? formerly dwUnused3
+    FILETIME ftLastLoaded;
+    wchar_t wszTitleName[64];
+};
+
+// ugh, XLiveProtectData code that crypts this data is a mess..
+// seems to be heavily tied to the machine that crypts it, eg. using memory amount as part of the crypto...
+typedef struct XLIVE_PROTECTED_DATA { // AchievementProtectedRecord?
+    DWORD cbSize;
+    DWORD dwEntryId; // maybe chooses encryption key to use?
+    // Header end?
+    DWORD dw0; // Flags?
+    BYTE b4[0x120];
+    DWORD cbData;
+    BYTE b128[0x20];
+    QWORD xuidOffline;
+    QWORD xuidOnline;
+    DWORD dwTitleId;
+    BYTE bData[0x1C];
+};
+
+typedef struct GPD_SYNCINFO { // SyncInfo
+    QWORD qwNext;
+    QWORD qwLastSync;
+    FILETIME ftServerSyncTime;
+};
+
+typedef struct GPD_INDEX_RECORD { // IndexRecord
+    QWORD qwEntryId;
+    QWORD qwSyncId;
+};
+
+DWORD XPROFILEID(DWORD type, DWORD size, DWORD id) {
+    return (((type & 0xf) << 28) | ((size & 0xfff) << 16) | (id & 0x3fff));
+}
+
+enum<BYTE> XUSER_DATA_TYPE {
+    XUSER_DATA_TYPE_CONTEXT = 0,
+    XUSER_DATA_TYPE_INT32 = 1,
+    XUSER_DATA_TYPE_INT64 = 2,
+    XUSER_DATA_TYPE_DOUBLE = 3,
+    XUSER_DATA_TYPE_UNICODE = 4,
+    XUSER_DATA_TYPE_FLOAT = 5,
+    XUSER_DATA_TYPE_BINARY = 6,
+    XUSER_DATA_TYPE_DATETIME = 7,
+    XUSER_DATA_TYPE_NULL = 0xFF
+};
+
+// majority of these settings are only set inside the dash GPD (fffe07d1.gpd)
+// except XPROFILE_GAMERCARD_TITLE_CRED_EARNED / XPROFILE_GAMERCARD_TITLE_ACHIEVEMENTS_EARNED, which track achievement info for this games GPD
+// and the XPROFILE_TITLE_SPECIFIC ones of course
+enum<DWORD> XPROFILE_ID {
+    XPROFILE_PERMISSIONS                         = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0 ), //0x10040000,
+    XPROFILE_GAMER_TYPE                          = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 1 ), //0x10040001,
+    XPROFILE_GAMER_YAXIS_INVERSION               = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 2 ), //0x10040002,
+    XPROFILE_OPTION_CONTROLLER_VIBRATION         = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 3 ), //0x10040003,
+    XPROFILE_TITLE_SPECIFIC1                     = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x3E8, 0x3FFF ), //0x63E83FFF,
+    XPROFILE_TITLE_SPECIFIC2                     = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x3E8, 0x3FFE ), //0x63E83FFE,
+    XPROFILE_TITLE_SPECIFIC3                     = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x3E8, 0x3FFD ), //0x63E83FFD,
+    XPROFILE_GAMERCARD_ZONE                      = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 4 ), //0x10040004,
+    XPROFILE_GAMERCARD_REGION                    = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 5 ), //0x10040005,
+    XPROFILE_GAMERCARD_CRED                      = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 6 ), //0x10040006,
+    XPROFILE_GAMER_PRESENCE_USER_STATE           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 7 ), //0x10040007,
+    XPROFILE_GAMERCARD_HAS_VISION                = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 8 ), //0x10040008,
+    XPROFILE_GAMERCARD_REP                       = XPROFILEID( XUSER_DATA_TYPE_FLOAT, sizeof(float), 0xB ), //0x5004000B,
+    XPROFILE_OPTION_VOICE_MUTED                  = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0xC ), //0x1004000C,
+    XPROFILE_OPTION_VOICE_THRU_SPEAKERS          = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0xD ), //0x1004000D,
+    XPROFILE_OPTION_VOICE_VOLUME                 = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0xE ), //0x1004000E,
+    XPROFILE_GAMERCARD_PICTURE_KEY               = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0xF ), //0x4064000F,
+    XPROFILE_GAMERCARD_PERSONAL_PICTURE          = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0x10 ), //0x40640010,
+    XPROFILE_GAMERCARD_MOTTO                     = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x2C, 0x11 ), //0x402C0011,
+    XPROFILE_GAMERCARD_TITLES_PLAYED             = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x12 ), //0x10040012,
+    XPROFILE_GAMERCARD_ACHIEVEMENTS_EARNED       = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x13 ), //0x10040013,
+    XPROFILE_GAMER_DIFFICULTY                    = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x15 ), //0x10040015,
+    XPROFILE_GAMER_CONTROL_SENSITIVITY           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x18 ), //0x10040018,
+    XPROFILE_GAMER_PREFERRED_COLOR_FIRST         = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x1d ), //0x1004001d,
+    XPROFILE_GAMER_PREFERRED_COLOR_SECOND        = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x1e ), //0x1004001e,
+    XPROFILE_GAMER_ACTION_AUTO_AIM               = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x22 ), //0x10040022,
+    XPROFILE_GAMER_ACTION_AUTO_CENTER            = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x23 ), //0x10040023,
+    XPROFILE_GAMER_ACTION_MOVEMENT_CONTROL       = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x24 ), //0x10040024,
+    XPROFILE_GAMER_RACE_TRANSMISSION             = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x26 ), //0x10040026,
+    XPROFILE_GAMER_RACE_CAMERA_LOCATION          = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x27 ), //0x10040027,
+    XPROFILE_GAMER_RACE_BRAKE_CONTROL            = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x28 ), //0x10040028,
+    XPROFILE_GAMER_RACE_ACCELERATOR_CONTROL      = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x29 ), //0x10040029,
+    XPROFILE_GAMERCARD_TITLE_CRED_EARNED         = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x38 ), //0x10040038,
+    XPROFILE_GAMERCARD_TITLE_ACHIEVEMENTS_EARNED = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x39 ), //0x10040039,
+    XPROFILE_GAMER_TIER                          = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3A ), //0x1004003A,
+    XPROFILE_MESSENGER_SIGNUP_STATE              = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3B ), //0x1004003B,
+    XPROFILE_MESSENGER_AUTO_SIGNIN               = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3C ), //0x1004003C,
+    XPROFILE_SAVE_WINDOWS_LIVE_PASSWORD          = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3D ), //0x1004003D,
+    XPROFILE_FRIENDSAPP_SHOW_BUDDIES             = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3E ), //0x1004003E,
+    XPROFILE_GAMERCARD_SERVICE_TYPE_FLAGS        = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3F ), //0x1004003F,
+    XPROFILE_GAMERCARD_USER_NAME                 = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x104, 0x40 ), //0x41040040,
+    XPROFILE_GAMERCARD_USER_LOCATION             = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x52, 0x41 ), //0x40520041,
+    XPROFILE_GAMERCARD_USER_URL                  = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x190, 0x42 ), //0x41900042,
+    XPROFILE_GAMERCARD_USER_BIO                  = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x3E8, 0x43 ), //0x43E80043,
+    XPROFILE_GAMERCARD_AVATAR_INFO_1             = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x3E8, 0x44 ), //0x63E80044,
+    XPROFILE_GAMERCARD_AVATAR_INFO_2             = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x3E8, 0x45 ), //0x63E80045,
+    XPROFILE_GAMERCARD_PARTY_INFO                = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x100, 0x46 ), //0x61000046,
+
+    XPROFILE_TENURE_LEVEL                        = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x47 ), //0x10040047,
+    XPROFILE_TENURE_MILESTONE                    = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x48 ), //0x10040048,
+    XPROFILE_TENURE_NEXT_MILESTONE_DATE          = XPROFILEID( XUSER_DATA_TYPE_DATETIME, sizeof(FILETIME), 0x49 ), //0x70080049,
+    XPROFILE_VIDEO_METADATA                      = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x20, 0x4A ), //0x6020004A,
+    XPROFILE_SUBSCRIPTION_TYPE_LENGTH_IN_MONTHS  = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x4B ), //0x1004004B,
+    XPROFILE_SUBSCRIPTION_PAYMENT_TYPE           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x4C ), //0x1004004C,
+    XPROFILE_JUMP_IN_LIST                        = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x3E8, 0x51 ), //0x63E80051,
+
+    XPROFILE_BEACONS_SOCIAL_NETWORK_SHARING      = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x52 ), //0x10040052,
+    XPROFILE_USER_PREFERENCES                    = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x53 ), //0x10040053,
+    XPROFILE_GAMERCARD_PARTY_ADDR                = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x62, 0x54 ), //0x60620054,
+
+    WEB_EMAIL_FORMAT                             = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2000 ), //0x10042000,
+    WEB_FLAGS                                    = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2001 ), //0x10042001,
+    WEB_SPAM                                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2002 ), //0x10042002,
+    WEB_FAVORITE_GENRE                           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2003 ), //0x10042003,
+    WEB_FAVORITE_GAME                            = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2004 ), //0x10042004,
+    WEB_FAVORITE_GAME1                           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2005 ), //0x10042005,
+    WEB_FAVORITE_GAME2                           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2006 ), //0x10042006,
+    WEB_FAVORITE_GAME3                           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2007 ), //0x10042007,
+    WEB_FAVORITE_GAME4                           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2008 ), //0x10042008,
+    WEB_FAVORITE_GAME5                           = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x2009 ), //0x10042009,
+    WEB_PLATFORMS_OWNED                          = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x200a ), //0x1004200a,
+    WEB_CONNECTION_SPEED                         = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x200b ), //0x1004200b,
+    WEB_FLASH                                    = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x200c ), //0x1004200c,
+    WEB_VIDEO_PREFERENCE                         = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x200d ), //0x1004200d,
+
+    XPROFILE_CRUX_MEDIA_PICTURE                  = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0x3E8 ), //0x406403E8,
+    XPROFILE_CRUX_MEDIA_STYLE1                   = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3EA ), //0x100403EA,
+    XPROFILE_CRUX_MEDIA_STYLE2                   = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3EB ), //0x100403EB,
+    XPROFILE_CRUX_MEDIA_STYLE3                   = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3EC ), //0x100403EC,
+    XPROFILE_CRUX_TOP_ALBUM1                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3ED ), //0x100403ED,
+    XPROFILE_CRUX_TOP_ALBUM2                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3EE ), //0x100403EE,
+    XPROFILE_CRUX_TOP_ALBUM3                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3EF ), //0x100403EF,
+    XPROFILE_CRUX_TOP_ALBUM4                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3F0 ), //0x100403F0,
+    XPROFILE_CRUX_TOP_ALBUM5                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3F1 ), //0x100403F1,
+    XPROFILE_CRUX_OFFLINE_ID                     = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x34, 0x3F2 ), //0x603403F2,
+    XPROFILE_CRUX_BKGD_IMAGE                     = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x3F3 ), //0x100403F3,
+    XPROFILE_CRUX_LAST_CHANGE_TIME               = XPROFILEID( XUSER_DATA_TYPE_DATETIME, sizeof(FILETIME), 0x3F4 ), //0x700803F4,
+    XPROFILE_CRUX_TOP_MUSIC                      = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0xA8, 0x3F5 ), //0x60A803F5,
+    XPROFILE_CRUX_MEDIA_MOTTO                    = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x100, 0x3F6 ), //0x410003F6,
+    XPROFILE_CRUX_TOP_MEDIAID1                   = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x10, 0x3F7 ), //0x601003F7,
+    XPROFILE_CRUX_TOP_MEDIAID2                   = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x10, 0x3F8 ), //0x601003F8,
+    XPROFILE_CRUX_TOP_MEDIAID3                   = XPROFILEID( XUSER_DATA_TYPE_BINARY, 0x10, 0x3F9 ), //0x601003F9,
+    XPROFILE_CRUX_BIO                            = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x3E8, 0x3FA ), //0x43E803FA,
+    XPROFILE_CRUX_BG_SMALL_PRIVATE               = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0x3FB ),  //0x406403FB,
+    XPROFILE_CRUX_BG_LARGE_PRIVATE               = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0x3FC ),  //0x406403FC,
+    XPROFILE_CRUX_BG_SMALL_PUBLIC                = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0x3FD ),  //0x406403FD,
+    XPROFILE_CRUX_BG_LARGE_PUBLIC                = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 0x64, 0x3FE ),  //0x406403FE
+};
+
+typedef struct GPD_SETTING { // SettingRecordStruct
+    XPROFILE_ID dwSettingId;
+    DWORD dwPad4 <hidden=true>;
+    
+    // XUSER_DATA follows
+    XUSER_DATA_TYPE type;
+    BYTE padding1[7] <hidden=true>;
+
+    union
+    {
+        DWORD nData;        // XUSER_DATA_TYPE_INT32
+        QWORD i64Data;      // XUSER_DATA_TYPE_INT64
+        double dblData;     // XUSER_DATA_TYPE_DOUBLE
+        struct              // XUSER_DATA_TYPE_UNICODE
+        {
+            DWORD cbData;   // Includes null-terminator
+            DWORD pwszData;
+        } str;
+        float fData;        // XUSER_DATA_TYPE_FLOAT
+        struct              // XUSER_DATA_TYPE_BINARY
+        {
+            DWORD cbData;
+            DWORD pbData;
+        } binary;
+    } data;
+
+    if(type == XUSER_DATA_TYPE_UNICODE)
+        wchar_t szData[data.str.cbData / 2] <optimize=false>;
+    else if(type == XUSER_DATA_TYPE_BINARY)
+        char bData[data.binary.cbData] <optimize=false>;
+};
+
+// end of GPD entries, SPA-only entries follow
+
+typedef struct SPA_SECTION_HEADER { // SpaSectionHeader
+    DWORD dwSig;
+    DWORD dwVersion;
+    DWORD dwSize;
+};
+
+typedef struct SPA_ACHIEVEMENT { // AchievementAttributes
+    WORD wId;
+    WORD wLabelStringId;
+    WORD wDescriptionStringId;
+    WORD wUnachievedStringId;
+    DWORD dwImageId;
+    WORD wGamerCred;
+    WORD wUnused;
+    XACHIEVEMENT_FLAGS dwFlags;
+    DWORD dwUnused1;
+    DWORD dwUnused2;
+    DWORD dwUnused3;
+    DWORD dwUnused4;
+};
+
+typedef struct SPA_XACH_SECTION { // Achievements
+    SPA_SECTION_HEADER header;
+    WORD wNumAchievements;
+    SPA_ACHIEVEMENT achievements[wNumAchievements] <optimize=false>;
+};
+
+enum<DWORD> TitleType {
+    System = 0x0,
+    Full = 0x1,
+    Demo = 0x2,
+    Download = 0x3
+};
+
+typedef struct SPA_XTHD_SECTION { // TitleAttributes
+    SPA_SECTION_HEADER header;
+    DWORD dwTitleId;
+    TitleType eTitleType; // if set to 1 (Full) or 3 (Download), will add the title to profile - unless dwTitleId starts with 0x5841 (arcade titleid family), if so then XamContentGetLicenseMask is used to check ownership first
+    WORD wProjectVersionMajor;
+    WORD wProjectVersionMinor;
+    WORD wProjectVersionBuild;
+    WORD wProjectVersionRevision;
+    union {
+        struct {
+            DWORD IncludeInProfile : 1; // adds the title to profile even if eTitleType requirement isn't met
+            DWORD NeverIncludeInProfile : 1; // prevents title being added to profile even if eTitleType is set properly
+            DWORD : 30;
+        } Flags;
+        DWORD AsDword;
+    } dwFlags;
+    DWORD dwUnused4;
+    DWORD dwUnused5;
+    DWORD dwUnused6;
+};
+
+typedef struct SPA_XSTR {
+    WORD wId;
+    WORD wLength;
+    char szValue[wLength] <optimize=false>;
+};
+
+typedef struct SPA_XSTR_SECTION {
+    SPA_SECTION_HEADER header;
+    WORD wCount;
+    SPA_XSTR strings[wCount] <optimize=false>;
+};
+
+typedef struct SPA_XSTC_SECTION { // StringTableCollection
+    SPA_SECTION_HEADER header;
+    DWORD dwDefaultLanguage;
+};
+
+typedef struct SPA_XCXT { // ContextAttributes
+    DWORD dwContextId;
+    DWORD dwStringId;
+    DWORD dwHighValue;
+    DWORD dwDefaultValue;
+};
+
+typedef struct SPA_XCXT_SECTION { // ContextCollection
+    SPA_SECTION_HEADER header;
+    DWORD dwCount;
+    SPA_XCXT contexts[dwCount] <optimize=false>;
+};
+
+typedef struct SPA_XPRP { // ContextAttributes
+    DWORD dwPropertyId;
+    WORD wStringId;
+    WORD wSize;
+};
+
+typedef struct SPA_XPRP_SECTION { // ContextCollection
+    SPA_SECTION_HEADER header;
+    WORD wCount;
+    SPA_XPRP properties[wCount] <optimize=false>;
+};
+
+typedef struct SPA_XPBM_SECTION { // PropertyBagMetadata
+    SPA_SECTION_HEADER header;
+    DWORD dwNumContexts;
+    DWORD dwNumProperties;
+    DWORD dwContextIds[dwNumContexts] <optimize=false>;
+    DWORD dwPropertyIds[dwNumProperties] <optimize=false>;
+};
+
+typedef struct SPA_XMAT_SECTION { // MatchMetadata / MatchCollection
+    SPA_SECTION_HEADER header;
+    SPA_XPBM_SECTION propertyBagMetadata;
+};
+
+typedef struct SPA_XITB_ENTRY {
+    DWORD dwId;
+    DWORD dwFileNameLen;
+    char szFileName[dwFileNameLen] <optimize=false>;
+};
+
+typedef struct SPA_XITB_SECTION { // ImageTable
+    SPA_SECTION_HEADER header;
+    DWORD dwNumImageReferences;
+    SPA_XITB_ENTRY imageReferences[dwNumImageReferences] <optimize=false>;
+};
+
+typedef struct SPA_XRPT_SECTION { // Presence
+    SPA_SECTION_HEADER header;
+    SPA_XPBM_SECTION propertyBag;
+    WORD wNumPresenceModes;
+    SPA_XPBM_SECTION presenceModes[wNumPresenceModes] <optimize=false>;
+};
+
+typedef struct SPA_XSRC_SECTION { // XlastFile
+    SPA_SECTION_HEADER header;
+    DWORD dwFileNameLength;
+    char szFileName[dwFileNameLength] <optimize=false>;
+    DWORD dwOriginalBytesLength;
+    DWORD dwXmlCompressedLen;
+    BYTE bXmlCompressed[dwXmlCompressedLen] <optimize=false>; // GZ compressed
+};
+
+enum<WORD> SPA_VIEWFIELD_AGGREGATIONTYPE {
+    AGGREGATIONTYPE_LAST = 0x8001,
+    AGGREGATIONTYPE_SUM = 0x8003,
+    AGGREGATIONTYPE_MIN = 0x8009,
+    AGGREGATIONTYPE_MAX = 0x800B,
+};
+
+enum<BYTE> SPA_VIEWFIELD_TYPE {
+    TYPE_CONTEXTFIELD = 0,
+    TYPE_PROPERTYFIELD = 1
+};
+
+typedef struct SPA_VIEWFIELD { // ViewFieldAttributes
+    DWORD dwStructSize;
+    DWORD dwId;
+    DWORD dwFlags;
+    WORD wAttributeId;
+    WORD wNameStringId;
+    SPA_VIEWFIELD_AGGREGATIONTYPE eAggregationType;
+    BYTE bOrdinal;
+    SPA_VIEWFIELD_TYPE eType;
+    DWORD eFormatType;
+    DWORD dwUnused1;
+    DWORD dwUnused2;
+};
+
+typedef struct SPA_SHAREDVIEWMETA { // SharedViewMeta
+    WORD wNumColumns;
+    WORD wNumRows;
+    DWORD dwUnused1;
+    DWORD dwUnused2;
+    SPA_VIEWFIELD columns[wNumColumns] <optimize=false>;
+    SPA_VIEWFIELD rows[wNumRows] <optimize=false>;
+    SPA_XPBM_SECTION propertyBagMetadata;
+};
+
+typedef struct SPA_XSVW_SECTION { // StatsView
+    DWORD dwId;
+    DWORD dwFlags;
+    WORD wSharedMetaIndex;
+    WORD wViewNameStringId;
+    DWORD dwUnused1;
+};
+
+typedef struct SPA_XVC2_SECTION { // StatsMetadata
+    SPA_SECTION_HEADER header;
+    WORD wNumSharedMetadata;
+    SPA_SHAREDVIEWMETA sharedMetadata[wNumSharedMetadata] <optimize=false>;
+    WORD wNumViews;
+    SPA_XSVW_SECTION views[wNumViews] <optimize=false>;
+};
+
+typedef struct SPA_XGAA_ENTRY { // AvatarItem
+    union
+    {
+        BYTE bGuid[0x10];
+        struct {
+            DWORD dwCategory;
+            WORD wTitleSpecificId;
+            BYTE : 4;
+            BYTE bAvatarBodyType : 4;
+            BYTE : 4;
+            BYTE bVersion : 4;
+            BYTE bGuidType;
+            BYTE bUnknown9;
+            BYTE bUnknown10;
+            BYTE bUnknown11;
+            DWORD dwTitleId;
+        } AvatarInfo;
+    } Id;
+    
+    WORD wDisplayStringId;
+    WORD wDescriptionStringId;
+    WORD wUnachievedStringId;
+    WORD wReserved1;
+    DWORD dwImageId;
+    XACHIEVEMENT_FLAGS dwFlags;
+    DWORD dwSubCategory;
+};
+
+typedef struct SPA_XGAA_SECTION { // AvatarItems
+    SPA_SECTION_HEADER header;
+    WORD wNumAvatarItems;
+    SPA_XGAA_ENTRY avatarItems[wNumAvatarItems] <optimize=false>;
+};
+
+// read headers + entry headers
+XDBF_HEADER Header;
+XDBF_ENTRY Entries[Header.dwEntryCurrent];
+FSeek(sizeof(XDBF_HEADER) + (Header.dwEntryMax * sizeof(XDBF_ENTRY)));
+XDBF_FREE FreeEntries[Header.dwFreeCurrent];
+
+local long headerLength = sizeof(XDBF_HEADER) + (sizeof(XDBF_ENTRY) * Header.dwEntryMax) + (sizeof(XDBF_FREE) * Header.dwFreeMax);
+Printf("XDBF header size: 0x%x\n", headerLength);
+
+// check if we're working with GPD or SPA - GPD should have a synclist/syncdata entry (id 0x100000000/0x200000000)
+local int x = 0;
+local int isGpd = 0;
+for(x = 0; x < Header.dwEntryCurrent; x++) 
+{
+    if(Entries[x].qwId == 0x100000000 || Entries[x].qwId == 0x200000000)
+    {
+        // Has sync data, must be a GPD
+        isGpd = 1;
+        break;
+    }
+}
+
+local int tmp = 0;
+for(x = 0; x < Header.dwEntryCurrent; x++) {
+    tmp = Entries[x].dwOffset + headerLength;
+    FSeek(tmp);
+    if(isGpd == 1)
+    {
+        if(Entries[x].qwId == 0x100000000)
+        {
+            Printf("IndexRecords/SyncList for type %d at 0x%x\n", Entries[x].wType.Gpd, tmp);
+    
+            tmp = Entries[x].dwSize / sizeof(GPD_INDEX_RECORD);
+            // disabled as there can be more than one SyncList inside a GPD (for each syncable namespace)
+            // but 010 doesn't support arrays of arrays...
+            //GPD_INDEX_RECORD IndexRecord[tmp];
+        }
+        else if(Entries[x].qwId == 0x200000000)
+        {
+            Printf("SyncInfo for type %d at 0x%x\n", Entries[x].wType.Gpd, tmp);
+            GPD_SYNCINFO SyncInfo;
+        }
+        else if(Entries[x].wType.Gpd == PROFILEFILE_NAMESPACE_ACHIEVEMENTS)
+            XACHIEVEMENT_DETAILS Achievement;
+        else if(Entries[x].wType.Gpd == PROFILEFILE_NAMESPACE_SETTINGS)
+            GPD_SETTING Setting;
+        else if(Entries[x].wType.Gpd == PROFILEFILE_NAMESPACE_TITLES)
+            XUSER_TITLE_PLAYED Title;
+        else if(Entries[x].wType.Gpd == PROFILEFILE_NAMESPACE_STRINGS)
+        {
+            wstring String;
+            Printf("String ID 0x%x at 0x%x length 0x%x\n", Entries[x].qwId, tmp, Entries[x].dwSize);
+        }
+        else if(Entries[x].wType.Gpd == PROFILEFILE_NAMESPACE_PROTECTED)
+        {
+            XLIVE_PROTECTED_DATA ProtectedData;
+            Printf("Protected ID 0x%x at 0x%x length 0x%x\n", Entries[x].qwId, tmp, Entries[x].dwSize);
+        }
+    }
+    else
+    {
+        if(Entries[x].wType.Spa == SPAFILE_NAMESPACE_METADATA)
+        {
+            if(Entries[x].qwId == 0x58414348) // XACH
+                SPA_XACH_SECTION Achievements;
+            else if(Entries[x].qwId == 0x58544844) // XTHD
+                SPA_XTHD_SECTION TitleAttributes;
+            else if(Entries[x].qwId == 0x58535443) // XSTC
+                SPA_XSTC_SECTION StringTableCollection;
+            else if(Entries[x].qwId == 0x58435854) // XCXT
+                SPA_XCXT_SECTION ContextCollection;
+            else if(Entries[x].qwId == 0x58505250) // XPRP
+                SPA_XPRP_SECTION PropertyCollection;
+            else if(Entries[x].qwId == 0x584D4154) // XMAT
+                SPA_XMAT_SECTION MatchMetadata;
+            else if(Entries[x].qwId == 0x5850424D) // XPBM
+                SPA_XPBM_SECTION PropertyBagMetadata;
+            else if(Entries[x].qwId == 0x58495442) // XITB
+                SPA_XITB_SECTION ImageTable;
+            else if(Entries[x].qwId == 0x58525054) // XRPT
+                SPA_XRPT_SECTION Presence;
+            else if(Entries[x].qwId == 0x58535243) // XSRC
+                SPA_XSRC_SECTION XlastFile;
+            else if(Entries[x].qwId == 0x58564332) // XVC2
+                SPA_XVC2_SECTION StatsMetadata;
+            else if(Entries[x].qwId == 0x58535657) // XSVW
+                SPA_XSVW_SECTION TableMetadata;
+            else if(Entries[x].qwId == 0x58474141) // XGAA
+                SPA_XGAA_SECTION AvatarItems;
+            else
+                Printf("Unknown SPA metadata, ID 0x%x @ 0x%x", Entries[x].qwId, tmp);
+        }
+        else if(Entries[x].wType.Spa == SPAFILE_NAMESPACE_STRINGTABLES)
+        {
+            SPA_XSTR_SECTION StringTable;
+        }
+    }
+}
