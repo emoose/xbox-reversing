@@ -21,6 +21,15 @@ FSeek(0);
 BitfieldRightToLeft();
 DisplayFormatHex();
 
+typedef struct XDBF_HEADER { // DataFileHeader
+    DWORD dwSig;
+    DWORD dwVersion;
+    DWORD dwEntryMax;
+    DWORD dwEntryCurrent;
+    DWORD dwFreeMax;
+    DWORD dwFreeCurrent;
+};
+
 enum<WORD> PROFILEFILE_NAMESPACE {
     PROFILEFILE_NAMESPACE_ACHIEVEMENTS = 1,
     PROFILEFILE_NAMESPACE_IMAGES = 2,
@@ -34,15 +43,6 @@ enum<WORD> SPAFILE_NAMESPACE {
     SPAFILE_NAMESPACE_METADATA = 1,
     SPAFILE_NAMESPACE_IMAGES = 2,
     SPAFILE_NAMESPACE_STRINGTABLES = 3
-};
-
-typedef struct XDBF_HEADER { // DataFileHeader
-    DWORD dwSig;
-    DWORD dwVersion;
-    DWORD dwEntryMax;
-    DWORD dwEntryCurrent;
-    DWORD dwFreeMax;
-    DWORD dwFreeCurrent;
 };
 
 typedef struct XDBF_ENTRY {
@@ -80,9 +80,9 @@ enum<DWORD> XACHIEVEMENT_DETAILS_PLATFORM {
 // this union will probably only work in 010 editor...
 typedef union XACHIEVEMENT_FLAGS {
     struct {
-        XACHIEVEMENT_TYPE Type : 3;
+        XACHIEVEMENT_TYPE Type : 3; // & 7 = type
         DWORD : 17;
-        XACHIEVEMENT_DETAILS_PLATFORM Platform : 3;
+        XACHIEVEMENT_DETAILS_PLATFORM Platform : 3; // & 0x700000 = platform
         DWORD : 9;
     } Types;
     struct {
@@ -161,10 +161,6 @@ typedef struct GPD_INDEX_RECORD { // IndexRecord
     QWORD qwSyncId;
 };
 
-DWORD XPROFILEID(DWORD type, DWORD size, DWORD id) {
-    return (((type & 0xf) << 28) | ((size & 0xfff) << 16) | (id & 0x3fff));
-}
-
 enum<BYTE> XUSER_DATA_TYPE {
     XUSER_DATA_TYPE_CONTEXT = 0,
     XUSER_DATA_TYPE_INT32 = 1,
@@ -176,6 +172,10 @@ enum<BYTE> XUSER_DATA_TYPE {
     XUSER_DATA_TYPE_DATETIME = 7,
     XUSER_DATA_TYPE_NULL = 0xFF
 };
+
+DWORD XPROFILEID(DWORD type, DWORD size, DWORD id) {
+    return (((type & 0xf) << 28) | ((size & 0xfff) << 16) | (id & 0x3fff));
+}
 
 // majority of these settings are only set inside the dash GPD (fffe07d1.gpd)
 // except XPROFILE_GAMERCARD_TITLE_CRED_EARNED / XPROFILE_GAMERCARD_TITLE_ACHIEVEMENTS_EARNED, which track achievement info for this games GPD
@@ -241,7 +241,7 @@ enum<DWORD> XPROFILE_ID {
     XPROFILE_GFWL_PLAYDEVICEDESC                 = XPROFILEID( XUSER_DATA_TYPE_UNICODE, 200, 0x4B ), //0x40C8004B,
     XPROFILE_GFWL_VOLUMELEVEL                    = XPROFILEID( XUSER_DATA_TYPE_FLOAT, sizeof(float), 0x4C ), //0x5004004C,
     XPROFILE_GFWL_RECLEVEL                       = XPROFILEID( XUSER_DATA_TYPE_FLOAT, sizeof(float), 0x4D ), //0x5004004D,
-    //XPROFILE_GFWL_VADHIGH                        = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x4E ), //0x1004004E,
+    //XPROFILE_GFWL_VADHIGH                      = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x4E ), //0x1004004E,
     XPROFILE_GFWL_VADNORMAL                      = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x4F ), //0x1004004F,
 
     XPROFILE_TENURE_LEVEL                        = XPROFILEID( XUSER_DATA_TYPE_INT32, sizeof(DWORD), 0x47 ), //0x10040047,
@@ -309,7 +309,7 @@ typedef struct GPD_SETTING { // SettingRecordStruct
     
     // XUSER_DATA follows
     XUSER_DATA_TYPE type;
-    BYTE padding1[7] <hidden=true>;
+    BYTE bPad9[7] <hidden=true>;
 
     union
     {
@@ -381,8 +381,8 @@ typedef struct SPA_XTHD_SECTION { // TitleAttributes
     WORD wProjectVersionRevision;
     union {
         struct {
-            DWORD IncludeInProfile : 1; // adds the title to profile even if eTitleType requirement isn't met
-            DWORD NeverIncludeInProfile : 1; // prevents title being added to profile even if eTitleType is set properly
+            DWORD IncludeInProfile      : 1; // 0x1: adds the title to profile even if eTitleType requirement isn't met
+            DWORD NeverIncludeInProfile : 1; // 0x2: prevents title being added to profile even if eTitleType is set properly
             DWORD : 30;
         } Flags;
         DWORD AsDword;
@@ -490,7 +490,13 @@ enum<BYTE> SPA_VIEWFIELD_TYPE {
 typedef struct SPA_VIEWFIELD { // ViewFieldAttributes
     DWORD dwStructSize;
     DWORD dwId;
-    DWORD dwFlags;
+    union {
+        struct {
+            DWORD Hidden : 1; // 0x1
+            DWORD : 31;
+        } Flags;
+        DWORD AsDword;
+    } dwFlags;
     WORD wAttributeId;
     WORD wNameStringId;
     SPA_VIEWFIELD_AGGREGATIONTYPE eAggregationType;
@@ -511,9 +517,29 @@ typedef struct SPA_SHAREDVIEWMETA { // SharedViewMeta
     SPA_XPBM_SECTION propertyBagMetadata;
 };
 
-typedef struct SPA_XSVW_SECTION { // StatsView
+enum<DWORD> XSVW_VIEWTYPE {
+    VIEWTYPE_LEADERBOARD = 0,
+    VIEWTYPE_CONTEXT_BY_PROPERTY = 1,
+    VIEWTYPE_CONTEXT_BY_CONTEXT = 2
+};
+
+typedef struct SPA_XSVW_SECTION { // TableMetadata / StatsView
     DWORD dwId;
-    DWORD dwFlags;
+    union {
+        struct {
+            XSVW_VIEWTYPE Type : 4; // & 0xF = type
+            DWORD : 28;
+        } Types;
+        struct {
+            DWORD : 4; // XSVW_VIEWTYPE
+            DWORD Arbitrated   : 1; // 0x10
+            DWORD Hidden       : 1; // 0x20
+            DWORD TeamView     : 1; // 0x40
+            DWORD OnlineOnly   : 1; // 0x80
+            DWORD : 24;
+        } Flags;
+        DWORD AsDword;
+    } dwFlags;
     WORD wSharedMetaIndex;
     WORD wViewNameStringId;
     DWORD dwUnused1;
