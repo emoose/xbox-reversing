@@ -1,0 +1,231 @@
+//--------------------------------------
+//--- 010 Editor v3.1.2 Binary Template
+//
+// File:     Xbox360KeyVault.bt
+// Author:   Anthony, emoose
+// Revision: 1.0
+// Purpose:  Map out a Xbox 360 Key Vault
+//--------------------------------------
+
+// Basic settings for this template
+BigEndian();
+BitfieldRightToLeft();
+DisplayFormatHex();
+
+// Define some variables and types
+
+#define KEYVAULT_RAW_SIZE   0x4000
+
+#define CONSOLE_TYPE_DEVKIT           0x1
+#define CONSOLE_TYPE_RETAIL           0x2
+#define CONSOLE_TYPE_DEVKIT_RECOVERED 0x80000001
+#define CONSOLE_TYPE_BETA             0x80000002
+
+typedef struct _RSA {
+    DWORD           cqw;
+    DWORD           dwPubExp;
+    QWORD           qwReserved;
+} RSA;
+
+typedef struct _RSAPUB_2048{
+    RSA             Rsa;                // Common header
+    QWORD           aqwM[32];           // [BnQwNe] Modulus
+} RSAPUB_2048;
+
+typedef struct _RSAPRV_1024 {
+    RSA             Rsa;                // Common header
+    QWORD           aqwM[16];           // [BnQwNe] Modulus
+    QWORD           aqwP[8];            // [BnQwNe] Private prime P
+    QWORD           aqwQ[8];            // [BnQwNe] Private prime Q
+    QWORD           aqwDP[8];           // [BnQwNe] Private exponent P
+    QWORD           aqwDQ[8];           // [BnQwNe] Private exponent Q
+    QWORD           aqwCR[8];           // [BnQwNe] Private coefficient
+} RSAPRV_1024;
+
+typedef struct _RSAPRV_2048 {
+    RSA             Rsa;                // Common header
+    QWORD           aqwM[32];           // [BnQwNe] Modulus
+    QWORD           aqwP[16];           // [BnQwNe] Private prime P
+    QWORD           aqwQ[16];           // [BnQwNe] Private prime Q
+    QWORD           aqwDP[16];          // [BnQwNe] Private exponent P
+    QWORD           aqwDQ[16];          // [BnQwNe] Private exponent Q
+    QWORD           aqwCR[16];          // [BnQwNe] Private coefficient
+} RSAPRV_2048;
+
+typedef struct _CONSOLE_PUBLIC_KEY {
+    DWORD PublicExponent;
+    QWORD Modulus[0x10];
+} CONSOLE_PUBLIC_KEY;
+
+typedef struct _XE_CONSOLE_CERTIFICATE {
+    WORD  CertSize;
+    BYTE  ConsoleId[0x05];
+    BYTE  ConsolePartNumber[0x0B];
+    BYTE  Reserved[0x04];
+    WORD  Privileges;
+    DWORD ConsoleType;
+    BYTE  ManufacturingDate[0x08];
+    CONSOLE_PUBLIC_KEY ConsolePublicKey;
+    QWORD Signature[0x20];
+} XE_CONSOLE_CERTIFICATE;
+
+typedef struct _XEIKA_ODD_DATA {
+   BYTE Version;
+   BYTE PhaseLevel;
+   BYTE InquiryData[0x24];
+} XEIKA_ODD_DATA;
+
+typedef struct _XEIKA_DATA {
+   RSAPUB_2048    PublicKey;
+   DWORD          Signature;
+   WORD           Version;
+   XEIKA_ODD_DATA OddData;
+   BYTE           Padding[0x4];
+} XEIKA_DATA;
+
+typedef struct _XEIKA_CERTIFICATE {
+   WORD       Size;
+   XEIKA_DATA Data;
+   BYTE       Padding[0x1146];
+ //BYTE       Reserved[0x100];
+};
+
+struct _RESTRICTED_PRIVILEGES_FLAGS
+{
+    BYTE EnableNone : 1;
+    BYTE EnableSelective : 1;
+    BYTE SignedKeyvault : 1;
+    BYTE : 5;
+};
+
+struct _RESTRICTED_PRIVILEGES
+{
+    QWORD Revert : 1;
+    QWORD Integration : 1;
+    QWORD ChinaTrial : 1;
+    QWORD Xgd2Exempt : 1;
+    QWORD Profile : 1;
+    QWORD Preview : 1;
+    QWORD Automation : 1;
+    QWORD DirectUsbStorage : 1;
+    QWORD Internal : 1;
+    QWORD Beta : 1;
+    QWORD Public : 1;
+    QWORD : 53;
+};
+
+struct _ODD_FEATURES
+{
+    WORD DiscardedDynamic : 1;
+    WORD DiscardedStatic : 1;
+    WORD DiscardedRange : 1;
+    WORD DiscardedMemory : 1;
+    WORD WriteLock : 1;
+    WORD CheckDynamic : 1;
+    WORD CheckStatic : 1;
+    WORD CheckMemory : 1;
+    
+    // 0x00 = DEFAULT_INSECURE
+    // 0xF0 = DEFAULT_SECURE
+    // 0xFF = MASK_SECURITY_HIGH
+    // 0x10 = MASK_SECURITY_LOW
+    // 0x00 = MASK_SECURITY_NONE
+};
+
+enum<WORD> _ODD_AUTHTYPE
+{
+    ODD_AUTHTYPE_LEGACY = 0,
+    ODD_AUTHTYPE_EXTENDED = 1,
+    ODD_AUTHTYPE_ADVANCED = 2
+};
+
+typedef struct _KEY_VAULT {                        // Key #
+    BYTE  MANUFACTURING_MODE;                      // 0x00
+    BYTE  ALTERNATE_KEY_VAULT;                     // 0x01
+    _RESTRICTED_PRIVILEGES_FLAGS RESTRICTED_PRIVILEGES_FLAGS;  // 0x02
+    BYTE  RESERVED_BYTE3;                          // 0x03
+    _ODD_FEATURES ODD_FEATURES;                    // 0x04
+    _ODD_AUTHTYPE ODD_AUTHTYPE;                    // 0x05
+    DWORD RESTRICTED_HVEXT_LOADER;                 // 0x06
+    DWORD POLICY_FLASH_SIZE;                       // 0x07
+    DWORD POLICY_BUILTIN_USBMU_SIZE;               // 0x08
+    DWORD RESERVED_DWORD4;                         // 0x09
+    _RESTRICTED_PRIVILEGES RESTRICTED_PRIVILEGES;  // 0x0A
+    QWORD RESERVED_QWORD2;                         // 0x0B
+    QWORD RESERVED_QWORD3;                         // 0x0C
+    QWORD RESERVED_QWORD4;                         // 0x0D
+    BYTE  RESERVED_KEY1[0x10];                     // 0x0E
+    BYTE  RESERVED_KEY2[0x10];                     // 0x0F
+    BYTE  RESERVED_KEY3[0x10];                     // 0x10
+    BYTE  RESERVED_KEY4[0x10];                     // 0x11
+    BYTE  RESERVED_RANDOM_KEY1[0x10];              // 0x12
+    BYTE  RESERVED_RANDOM_KEY2[0x10];              // 0x13
+    BYTE  CONSOLE_SERIAL_NUMBER[0x0C];             // 0x14
+    BYTE  MOBO_SERIAL_NUMBER[0x0C];                // 0x15
+    WORD  GAME_REGION;                             // 0x16
+    BYTE  Padding[0x06];
+    BYTE  CONSOLE_OBFUSCATION_KEY[0x10];           // 0x17
+    BYTE  KEY_OBFUSCATION_KEY[0x10];               // 0x18
+    BYTE  ROAMABLE_OBFUSCATION_KEY[0x10];          // 0x19
+    BYTE  DVD_KEY[0x10];                           // 0x1A
+    BYTE  PRIMARY_ACTIVATION_KEY[0x18];            // 0x1B
+    BYTE  SECONDARY_ACTIVATION_KEY[0x10];          // 0x1C
+    BYTE  GLOBAL_DEVICE_2DES_KEY1[0x10];           // 0x1D
+    BYTE  GLOBAL_DEVICE_2DES_KEY2[0x10];           // 0x1E
+    BYTE  WIRELESS_CONTROLLER_MS_2DES_KEY1[0x10];  // 0x1F
+    BYTE  WIRELESS_CONTROLLER_MS_2DES_KEY2[0x10];  // 0x20
+    BYTE  WIRED_WEBCAM_MS_2DES_KEY1[0x10];         // 0x21
+    BYTE  WIRED_WEBCAM_MS_2DES_KEY2[0x10];         // 0x22
+    BYTE  WIRED_CONTROLLER_MS_2DES_KEY1[0x10];     // 0x23
+    BYTE  WIRED_CONTROLLER_MS_2DES_KEY2[0x10];     // 0x24
+    BYTE  MEMORY_UNIT_MS_2DES_KEY1[0x10];          // 0x25
+    BYTE  MEMORY_UNIT_MS_2DES_KEY2[0x10];          // 0x26
+    BYTE  OTHER_XSM3_DEVICE_MS_2DES_KEY1[0x10];    // 0x27
+    BYTE  OTHER_XSM3_DEVICE_MS_2DES_KEY2[0x10];    // 0x28
+    BYTE  WIRELESS_CONTROLLER_3P_2DES_KEY1[0x10];  // 0x29
+    BYTE  WIRELESS_CONTROLLER_3P_2DES_KEY2[0x10];  // 0x2A
+    BYTE  WIRED_WEBCAM_3P_2DES_KEY1[0x10];         // 0x2B
+    BYTE  WIRED_WEBCAM_3P_2DES_KEY2[0x10];         // 0x2C
+    BYTE  WIRED_CONTROLLER_3P_2DES_KEY1[0x10];     // 0x2D
+    BYTE  WIRED_CONTROLLER_3P_2DES_KEY2[0x10];     // 0x2E
+    BYTE  MEMORY_UNIT_3P_2DES_KEY1[0x10];          // 0x2F
+    BYTE  MEMORY_UNIT_3P_2DES_KEY2[0x10];          // 0x30
+    BYTE  OTHER_XSM3_DEVICE_3P_2DES_KEY1[0x10];    // 0x31
+    BYTE  OTHER_XSM3_DEVICE_3P_2DES_KEY2[0x10];    // 0x32
+    RSAPRV_1024 CONSOLE_PRIVATE_KEY;               // 0x33
+    RSAPRV_2048 XEIKA_PRIVATE_KEY;                 // 0x34
+    RSAPRV_1024 CARDEA_PRIVATE_KEY;                // 0x35
+    XE_CONSOLE_CERTIFICATE CONSOLE_CERTIFICATE;    // 0x36
+    _XEIKA_CERTIFICATE XEIKA_CERTIFICATE;          // 0x37
+    QWORD SPECIAL_KEY_VAULT_SIGNATURE[0x20];       // 0x44
+    BYTE  CARDEA_CERTIFICATE[0x2108];              // 0x38
+} KEY_VAULT;
+
+typedef struct _RAW_KEY_VAULT {
+    if(FileSize() >= KEYVAULT_RAW_SIZE) 
+        BYTE  Digest[0x10];
+    BYTE      Random[0x08];
+    KEY_VAULT KeyVault;
+} RAW_KEY_VAULT;
+
+// Map our KV
+RAW_KEY_VAULT kv;
+
+// Display our console type
+local DWORD consoleType = kv.KeyVault.CONSOLE_CERTIFICATE.ConsoleType;
+
+Printf("Console Type: 0x%08X ", consoleType);
+switch(consoleType) {
+    case CONSOLE_TYPE_RETAIL:
+        Printf("(Retail console)");
+        break;
+    case CONSOLE_TYPE_DEVKIT:
+        Printf("(DevKit console)");
+        break;
+    case CONSOLE_TYPE_DEVKIT_RECOVERED:
+        Printf("(DevKit console - recovered/generated, non-original keyvault)");
+        break;
+    case CONSOLE_TYPE_BETA:
+        Printf("(BetaKit console)");
+        break;
+}

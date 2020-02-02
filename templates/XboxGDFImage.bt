@@ -1,0 +1,81 @@
+//------------------------------------------------
+//--- 010 Editor v9.0.2 Binary Template
+//
+//      File: XboxGDFImage.bt
+//   Authors: emoose (abc@cock.li)
+//   Version: 1.0
+//   Purpose: Parse Xbox/Xbox360 GameDiskFormat images
+//  Category: Drives
+// File Mask: *.iso
+//  ID Bytes:
+//   History: 
+//------------------------------------------------
+
+// NOTE: Sadly can't use ID Bytes above, since 010 only lets you read from first 2048 bytes...
+
+local DWORD kSectorSize = 0x800;
+local DWORD kVolumeDescriptorSector = 0x20;
+
+struct GDF_VOLUME_DESCRIPTOR
+{
+  char HeadSignature[20];
+  DWORD RootDirectoryFirstSector;
+  DWORD RootDirectoryFileSize;
+  FILETIME TimeStamp;
+  DWORD Version;
+  DWORD Hash1FirstSector;
+  DWORD Hash1FileSize;
+  DWORD Hash2FirstSector;
+  DWORD Hash2FileSize;
+  BYTE Reserved[0x7B4];
+  char TailSignature[20];
+};
+
+struct GDF_DIRECTORY_ENTRY
+{
+  WORD LeftEntryIndex;
+  WORD RightEntryIndex;
+  DWORD FirstSector;
+  DWORD FileSize;
+  BYTE FileAttributes;
+  BYTE FileNameLength;
+  char FileName[FileNameLength];
+};
+
+void SeekToSector(QWORD Sector)
+{
+  FSeek(Sector * kSectorSize);
+}
+
+void ReadDirectory(string Name, QWORD Sector, QWORD Size)
+{
+  local string FName;
+  SeekToSector(Sector);
+  local QWORD Pos = FTell();
+  local QWORD EndPos = Pos + Size;
+  while(EndPos > FTell())
+  {
+    DWORD TestDword<hidden=true>;
+    FSeek(FTell() - 4);
+    if(TestDword == 0xFFFFFFFF)
+      break; // End of table
+
+    GDF_DIRECTORY_ENTRY DirectoryEntry;
+    Pos = FTell();
+    
+    FName = Name + "\\" + DirectoryEntry.FileName;
+
+    if((DirectoryEntry.FileAttributes & 0x10) != 0)
+      ReadDirectory(FName, DirectoryEntry.FirstSector, DirectoryEntry.FileSize);
+    else
+      Printf("%s  0x%X  0x%X bytes\n", FName, DirectoryEntry.FirstSector * kSectorSize, DirectoryEntry.FileSize);
+    
+    // 4-byte alignment
+    FSeek(Pos + ((Pos & 3) == 0 ? 0 : (4 - (Pos & 3))));
+  }
+}
+
+SeekToSector(kVolumeDescriptorSector);
+GDF_VOLUME_DESCRIPTOR GdfVolumeDescriptor;
+
+ReadDirectory("", GdfVolumeDescriptor.RootDirectoryFirstSector, GdfVolumeDescriptor.RootDirectoryFileSize);
