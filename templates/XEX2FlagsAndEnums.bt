@@ -7,6 +7,7 @@
 // Purpose:  Defines basic flags and enums
 //--------------------------------------
 enum IMAGEKEYS {
+    OriginalBaseAddress_XEX3F   = 0x00000201,
     HeaderSectionTable          = 0x000002FF,
     FileDataDescriptor          = 0x000003FF,
     BaseReference               = 0x00000405,
@@ -18,19 +19,23 @@ enum IMAGEKEYS {
     ConsoleIdTable              = 0x000042FF,
     DiscProfileID               = 0x00004304,
     BoundingPath                = 0x000080FF,
-    PEExports_OldKey            = 0x00008102,
+    BuildVersions_XEX3F         = 0x00008102,
     DeviceId                    = 0x00008105,
     OriginalBaseAddress         = 0x00010001,
     EntryPoint                  = 0x00010100,
     PEBase                      = 0x00010201,
-    Imports_OldKey              = 0x000102FF,
+    Imports_OldKey              = 0x000102FF, // XEX25 key
     Imports                     = 0x000103FF,
+	PEExports_XEX1              = 0x00010400,
+	StackSize_XEX25             = 0x00010400, // XEX25 key
+	TLSData_OldKey              = 0x00010504, // XEX25 key
     VitalStats                  = 0x00018002,
     CallcapImports              = 0x00018102,
     FastcapEnabled              = 0x00018200,
     PEModuleName                = 0x000183FF,
     BuildVersions               = 0x000200FF,
     TLSData                     = 0x00020104,
+	BuildVersions_OldKey        = 0x000201FF, // XEX25 key
     StackSize                   = 0x00020200,
     FSCacheSize                 = 0x00020301,
     XapiHeapSize                = 0x00020401,
@@ -39,6 +44,7 @@ enum IMAGEKEYS {
     Privileges_32               = 0x00030100, // privilege IDs 32 onward
     Privileges_64               = 0x00030200, // privilege IDs 64 onward
     ExecutionID                 = 0x00040006,
+    ExecutionID_XEX25           = 0x00040008,
     ServiceIDList               = 0x000401FF,
     WorkspaceSize               = 0x00040201,
     GameRatings                 = 0x00040310,

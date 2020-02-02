@@ -41,7 +41,7 @@ typedef struct {
     DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
     DWORD SizeOfDiscardableHeaders   <comment="Size of headers that can be discarded after XEX load">;
     DWORD LoadAddress                <comment="Base address of the executable">;
-    DWORD Unknown14;
+    DWORD ImageSize;
     DWORD HeaderDirectoryEntryCount  <comment="Number of directory entries">;
 } IMAGE_XEX_3F_HEADER;
 
@@ -144,8 +144,8 @@ typedef struct
 
 typedef struct
 {
-    DWORD Size : 28;
     DWORD Info : 4;
+    DWORD Size : 28;
     BYTE DataDigest[0x14];
 } HV_PAGE_INFO;
 
@@ -230,14 +230,17 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
         case PEModuleName:         XEXSTRING                    PEModuleName;          break;
         case BuildVersions:        XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
+		case BuildVersions_OldKey: XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
         case TLSData:              XEX2_TLS_DATA                TLSData;               break;
+        case TLSData_OldKey:       XEX2_TLS_DATA                TLSData;               break;
         case ExecutionID:          XEX2_EXECUTION_ID            ExecutionID;           break;
+        case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
         case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
         case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
         case LANKey:               XEXKEY                       LANKey;                break;
         case MicrosoftLogo:        XEX2_MSLOGO                  MicrosoftLogo;         break;
         case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
-        case PEExports_OldKey:     IMAGE_DATA_DIRECTORY         PEExports;             break;
+        case OriginalBaseAddress_XEX3F:     IMAGE_DATA_DIRECTORY         PEExports;             break;
         default:
             if(headerLen == 0xFF)
                 OPTIONALHEADERDATA optData;

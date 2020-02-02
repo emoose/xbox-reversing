@@ -49,16 +49,27 @@ typedef struct {
 } XEX2_FILE_DATA_DESCRIPTOR;
 
 typedef struct {
-    DWORD   MediaId;
+    DWORD MediaId;
     VERSION Version;
     VERSION BaseVersion;
-    DWORD   TitleId;
-    CHAR    Platform;
-    CHAR    ExecutableType;
-    CHAR    DiscNum;
-    CHAR    DiscsInSet;
-    DWORD   SaveGameId;
+    DWORD TitleId;
+    CHAR Platform;
+    CHAR ExecutableType;
+    CHAR DiscNum;
+    CHAR DiscsInSet;
+    DWORD SaveGameId;
 } XEX2_EXECUTION_ID;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+    DWORD Platform;
+    DWORD ExecutableType;
+    DWORD DiscNum;
+    DWORD DiscsInSet;
+    DWORD SaveGameId;
+} XEX25_EXECUTION_ID;
 
 typedef struct {
     DWORD Size;
