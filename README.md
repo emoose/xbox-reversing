@@ -5,6 +5,8 @@ Feel free to make an issue/PR if you have any problems or improvements.
 ## Contents
 
 ### xbox360.py & x360_imports.py
+**(Note: an updated, native DLL version of xbox360.py can be found here: https://github.com/emoose/idaxex)**
+
 IDA 7.0+ python loader script for Xbox360 XEX executables, should support loading almost all (uncompressed) XEX formats, including most pre-1888 beta formats.
 
 To make use of it copy both scripts into your IDA loaders/ directory, and make sure your Python2.7 setup has PyCrypto module installed ("pip install pycrypto"...)
