@@ -368,11 +368,11 @@ namespace STFSChk
             return BitConverter.ToUInt64(data, 0);
         }
 
-        public static string ToHexString(this byte[] data)
+        public static string ToHexString(this byte[] data, string seperator = "")
         {
             var ret = "";
             foreach (var byt in data)
-                ret += byt.ToString("X2");
+                ret += byt.ToString("X2") + seperator;
             return ret;
         }
 

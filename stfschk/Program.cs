@@ -9,7 +9,7 @@ namespace STFSChk
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("STFS filesystem checker/verifier 0.1, by emoose");
+            Console.WriteLine("STFS filesystem checker/verifier 0.2, by emoose");
             Console.WriteLine();
             if (args.Length <= 0)
             {
@@ -105,7 +105,9 @@ namespace STFSChk
                 return false;
             }
 
+            bool isLivePirs = file.Header.SignatureType == XCONTENT_HEADER.kSignatureTypeLiveBE || file.Header.SignatureType == XCONTENT_HEADER.kSignatureTypePirsBE;
             long fileExpectedSize = file.StfsBackingBlockToOffset(file.NumberOfBackingBlocks);
+            var signer = file.Signer;
 
             if (infoWriter != null)
             {
@@ -150,7 +152,7 @@ namespace STFSChk
                 var offset = file.StfsDataBlockToOffset(i);
                 var hashEntry = hashEntries[i];
 
-                if (offset >= fileExpectedSize || (offset + 0x1000) > fileExpectedSize)
+                if (offset >= fileStream.Length || (offset + 0x1000) > fileStream.Length)
                 {
                     invalidBlocks.Add(i);
                     continue;
@@ -173,14 +175,6 @@ namespace STFSChk
                     infoWriter.WriteLine($"Detected {invalidHashes.Count} invalid data blocks:");
                     foreach (var offset in invalidHashes)
                         infoWriter.WriteLine($"  0x{offset:X}");
-                }
-
-                if (invalidBlocks.Count > 0)
-                {
-                    infoWriter.WriteLine();
-                    infoWriter.WriteLine($"Detected {invalidBlocks.Count} out-of-bounds data blocks:");
-                    foreach (var block in invalidBlocks)
-                        infoWriter.WriteLine($"  0x{block:X} (at 0x{file.StfsDataBlockToOffset(block):X})");
                 }
 
                 infoWriter.WriteLine();
@@ -222,7 +216,9 @@ namespace STFSChk
                 }
                 if (numBlocks != (ulong)entry.DirEntry.ValidDataBlocks)
                 {
-                    thisIsValid = false;
+                    if (isLivePirs)
+                        thisIsValid = false; // only count as invalid if this is LIVE/PIRS, since CON can use weird values here?
+
                     if (infoWriter != null)
                         infoWriter.WriteLine($"  ^ has invalid NumValidDataBlocks! (value 0x{entry.DirEntry.ValidDataBlocks:X}, expected 0x{numBlocks:X}{Environment.NewLine})");
                 }
@@ -282,7 +278,10 @@ namespace STFSChk
 
                 // Header checks
                 {
-                   // infoWriter.WriteLine($"  Header signature: unknown (TBD in 0.2)");
+                    var addStr = "";
+                    if (signer.Contains("invalid"))
+                        addStr = $" (expected valid {file.Header.SignatureTypeString} signature)";
+                    infoWriter.WriteLine($"  Header signature: {signer}" + addStr);
                 }
 
                 // Metadata checks
@@ -303,7 +302,7 @@ namespace STFSChk
                     bool expectedReadOnlyFormat = false;
                     uint expectedHeaderSize = 0x971A; // CON SizeOfHeaders
 
-                    if (file.Header.SignatureType == XCONTENT_HEADER.kSignatureTypeLiveBE || file.Header.SignatureType == XCONTENT_HEADER.kSignatureTypePirsBE)
+                    if (isLivePirs)
                     {
                         expectedReadOnlyFormat = true;
                         expectedHeaderSize = 0xAD0E; // LIVE/PIRS SizeOfHeaders (larger size for the XCONTENT_METADATA_INSTALLER data?)
@@ -318,7 +317,19 @@ namespace STFSChk
                     // not checking file.StfsVolumeDescriptor.DescriptorLength here as that was already checked inside StfsInit
                 }
 
-                // Hash checks
+                // Directory checks
+                {
+                    // TODO: check that the directory block count is sane (directory should contain at least ((blockCount - 1) * 64) children)
+                    // uint minDirectoryEntries = (file.StfsVolumeDescriptor.DirectoryAllocationBlocks - 1u) * 64;
+                    // if(minDirectoryEntries > file.Children.Length)
+
+                    // Check that the chain-size of directory blocks == size inside volume descriptor
+                    var directoryChain = file.StfsGetDataBlockChain(file.StfsVolumeDescriptor.DirectoryFirstBlockNumber, file.StfsVolumeDescriptor.DirectoryAllocationBlocks + 10);
+                    if (directoryChain.Length != file.StfsVolumeDescriptor.DirectoryAllocationBlocks)
+                        infoWriter.WriteLine($"  DirectoryChain.Length: {directoryChain.Length} (expected {file.StfsVolumeDescriptor.DirectoryAllocationBlocks})");
+                }
+
+                // Hash/block checks
                 {
                     infoWriter.WriteLine($"  Hash tables: {file.InvalidTables.Count}/{file.CachedTables.Count}");
 
@@ -328,7 +339,7 @@ namespace STFSChk
 
                     infoWriter.WriteLine($"  Data blocks: {invalidHashes.Count}/{file.StfsVolumeDescriptor.NumberOfTotalBlocks}" + addStr);
                     infoWriter.WriteLine($"  Directory entries: {numInvalidEntries}/{file.Children.Length}");
-                    infoWriter.WriteLine($"  Block indices: {invalidBlocks.Count}/{file.StfsVolumeDescriptor.NumberOfTotalBlocks}");
+                    infoWriter.WriteLine($"  Missing blocks: {invalidBlocks.Count}/{file.StfsVolumeDescriptor.NumberOfTotalBlocks}");
                 }
 
                 // Size checks
@@ -340,16 +351,16 @@ namespace STFSChk
                         infoWriter.WriteLine($"  Package size: 0x{fileExpectedSize:X}");
 
                     if (fileStream.Length < fileExpectedSize)
-                        infoWriter.WriteLine($"  (file truncated, too small to hold {file.NumberOfBackingBlocks} backing blocks)");
+                        infoWriter.WriteLine($"    (file truncated, too small to hold {file.NumberOfBackingBlocks} backing blocks)");
                     else if (fileStream.Length > fileExpectedSize)
-                        infoWriter.WriteLine($"  (file oversized, contains 0x{(fileStream.Length - fileExpectedSize):X} extra bytes)");
+                        infoWriter.WriteLine($"    (file oversized, contains 0x{(fileStream.Length - fileExpectedSize):X} extra bytes)");
                 }
 
-                var path = $"{file.Metadata.Creator:X16}\\{file.Metadata.ExecutionId.TitleId:X8}\\{file.Metadata.ContentType:X8}\\{file.Header.ContentId.ToHexString()}";
-                infoWriter.WriteLine($"  Expected path: {path}");
+                var path = $"Content\\{file.Metadata.Creator:X16}\\{file.Metadata.ExecutionId.TitleId:X8}\\{file.Metadata.ContentType:X8}\\{file.Header.ContentId.ToHexString()}";
+                infoWriter.WriteLine($"  HDD path: {path}");
             }
 
-            return file.InvalidTables.Count <= 0 && invalidHashes.Count <= 0 && invalidBlocks.Count <= 0 && numInvalidEntries <= 0 && (fileStream.Length >= fileExpectedSize);
+            return !signer.Contains("invalid") && file.InvalidTables.Count <= 0 && invalidHashes.Count <= 0 && invalidBlocks.Count <= 0 && numInvalidEntries <= 0 && (fileStream.Length >= fileExpectedSize);
         }
     }
 }

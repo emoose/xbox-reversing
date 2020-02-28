@@ -33,29 +33,32 @@ Alternatively, drag & drop an STFS file into the stfschk.exe.
 ### Scans
 stfschk supports verification of the following:
 
+- header signature (supporting LIVE/PIRS retail & devkit keys)
 - metadata hash (aka "content ID")
 - hash tables/blocks
 - data blocks
 - directory entries (checks that block counts are valid & sane, and the block-chain looks valid)
+- directory blocks (make sure directory blocks are defined correctly)
 - package size (checks for truncation & extra unused bytes)
 - metadata values (currently only content size)
 
 The result of these checks should give you a reasonable idea of the validity of a package.  
-More checks (eg. header signature, to verify where the package originated from) will hopefully be added later on.
+More checks will hopefully be added later on.
 
 ### Example output
 An example summary provided by stfschk, from a file that had ~60% of the contents deleted:
 
 ```
 Summary (invalid/total):
+  Header signature: invalid! (expected valid LIVE signature)
   Metadata hash: valid
   Hash tables: 741/1330
-  Data blocks: 130/224430 (bad hash tables prevents checking data blocks, the invalid count may be higher!)
+  Data blocks: 0/224430 (bad hash tables prevents checking data blocks, the invalid count may be higher!)
   Directory entries: 705/1601
-  Block indices: 0/224430
+  Missing blocks: 125280/224430
   Package size: 0x185A674D (expected 0x371EB000, -516180147 bytes difference)
-  (file truncated, too small to hold 225760 backing blocks)
-  Expected path: 0000000000000000\58410931\000D0000\A7603793FD5268F4CDA9EC80D1921F0F2F8392D5
+    (file truncated, too small to hold 225760 backing blocks)
+  HDD path: Content\0000000000000000\58410931\000D0000\A7603793FD5268F4CDA9EC80D1921F0F2F8392D5
 
 Errors found, file may be invalid!
 ```

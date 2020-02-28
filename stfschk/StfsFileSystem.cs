@@ -79,6 +79,41 @@ namespace STFSChk
             }
         }
 
+        public string Signer
+        {
+            get
+            {
+                if (Header.SignatureType != XCONTENT_HEADER.kSignatureTypeLiveBE && Header.SignatureType != XCONTENT_HEADER.kSignatureTypePirsBE)
+                    return "unknown (console signed)";
+
+                var dict = new Dictionary<string, byte[]>()
+                {
+                    { "LIVE", XeCrypt.live_retail_public },
+                    { "PIRS", XeCrypt.pirs_retail_public },
+                    { "LIVE-devkit", XeCrypt.live_devkit_public },
+                    { "PIRS-devkit", XeCrypt.live_devkit_public },
+                };
+
+                var sig = Header.Signature.Substring(0, 0x100);
+                Array.Reverse(sig);
+
+                foreach (var key in dict)
+                {
+                    var rsaParams = XeCrypt.RSA_BeToLeKey(key.Value);
+                    var rsa = new RSACryptoServiceProvider();
+                    rsa.ImportParameters(rsaParams);
+
+                    var sigDeformatter = new RSAPKCS1SignatureDeformatter(rsa);
+                    sigDeformatter.SetHashAlgorithm("SHA1");
+
+                    if (sigDeformatter.VerifySignature(headerSha1, sig))
+                        return $"valid ({key.Key} signed)";
+                }
+
+                return "invalid!";
+            }
+        }
+
         public StfsFileSystem(Stream stream, string inputPath, long partitionOffset = 0)
         {
             Stream = stream;
@@ -139,8 +174,6 @@ namespace STFSChk
                     Stream.Position = 0x22C;
                     Stream.Read(headerRaw, 0, 0x118);
                     headerSha1 = Sha1.ComputeHash(headerRaw);
-                    
-                    // TODO: check headerSha1 against package signature
 
                     var metadataEnd = (int)(Utility.RoundToPages(Header.SizeOfHeaders, kSectorSize) * kSectorSize);
 
