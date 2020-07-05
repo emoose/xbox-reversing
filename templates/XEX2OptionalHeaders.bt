@@ -72,6 +72,14 @@ typedef struct {
 } XEX25_EXECUTION_ID;
 
 typedef struct {
+    DWORD Unknown0;
+	DWORD Unknown4;
+	DWORD TitleId;
+	DWORD UnknownC;
+	DWORD Unknown10;
+} XEX0_EXECUTION_ID;
+
+typedef struct {
     DWORD Size;
     DWORD CustomServiceIDs[4];
 } XEX2_SERVICE_ID_LIST;

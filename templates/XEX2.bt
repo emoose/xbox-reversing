@@ -248,6 +248,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case TLSData_OldKey:       XEX2_TLS_DATA                TLSData;               break;
         case ExecutionID:          XEX2_EXECUTION_ID            ExecutionID;           break;
         case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
+		case ExecutionID_XEX0:     XEX0_EXECUTION_ID			ExecutionID_XEX0;	   break;
         case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
         case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
         case LANKey:               XEXKEY                       LANKey;                break;

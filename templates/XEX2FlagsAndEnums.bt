@@ -7,7 +7,7 @@
 // Purpose:  Defines basic flags and enums
 //--------------------------------------
 enum IMAGEKEYS {
-    OriginalBaseAddress_XEX3F   = 0x00000201,
+    OriginalBaseAddress_XEX3F   = 0x00000201, // Also seems to store XEX type (title/system, exe/dll) in XEX0 executables
     HeaderSectionTable          = 0x000002FF,
     FileDataDescriptor          = 0x000003FF,
     BaseReference               = 0x00000405,
@@ -22,6 +22,7 @@ enum IMAGEKEYS {
     BuildVersions_XEX3F         = 0x00008102,
     DeviceId                    = 0x00008105,
     OriginalBaseAddress         = 0x00010001,
+	ExecutionID_XEX0			= 0x00010005,
     EntryPoint                  = 0x00010100,
     PEBase                      = 0x00010201,
     Imports_OldKey              = 0x000102FF, // XEX25 key
