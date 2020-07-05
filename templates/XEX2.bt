@@ -45,6 +45,14 @@ typedef struct {
     DWORD HeaderDirectoryEntryCount  <comment="Number of directory entries">;
 } IMAGE_XEX_3F_HEADER;
 
+typedef struct {
+    DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
+    DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
+    DWORD ImageBase                  <comment="Base address of image, minus XEX SizeOfHeaders">;
+    DWORD SizeOfImage                <comment="Size of image, plus XEX SizeOfHeaders">;
+    DWORD HeaderDirectoryEntryCount;
+} IMAGE_XEX0_HEADER;
+
 typedef struct
 {
     IMAGEKEYS Key;
@@ -155,7 +163,12 @@ local char hasSecurityInfo = 1;
 local DWORD magic = ReadUInt(0);
 FSeek(0);
 
-if(magic == 0x5845583F) // XEX? (<=1529)
+if(magic == 0x58455830) // XEX0 (1332)
+{
+    IMAGE_XEX0_HEADER XexHeader;
+    hasSecurityInfo = 0;
+}
+else if(magic == 0x5845583F) // XEX? (<=1529)
 {
     IMAGE_XEX_3F_HEADER XexHeader;
     hasSecurityInfo = 0;
