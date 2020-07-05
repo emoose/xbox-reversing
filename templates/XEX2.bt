@@ -62,18 +62,18 @@ typedef struct
 // XEX2 security structs
 typedef struct
 {
-	  BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
-	  DWORD InfoSize            <comment="Size of security info structure">;
-	  IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
-	  DWORD LoadAddress         <comment="Base address of the executable">;
-	  XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
-	  DWORD ImportTableCount    <comment="Number of import tables">;
-	  XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
-	  XEXKEY MediaID            <comment="Unique ID of this image">;
-	  XEXKEY ImageKey           <comment="Encryption key for the inner image">;
-	  DWORD ExportTableAddress  <comment="Virtual address of the export table">;
-	  XEXDIGEST HeaderHash      <comment="Hash of all XEX headers">;
-	  GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
+    BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+    DWORD InfoSize            <comment="Size of security info structure">;
+    IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
+    DWORD LoadAddress         <comment="Base address of the executable">;
+    XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
+    DWORD ImportTableCount    <comment="Number of import tables">;
+    XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
+    XEXKEY MediaID            <comment="Unique ID of this image">;
+    XEXKEY ImageKey           <comment="Encryption key for the inner image">;
+    DWORD ExportTableAddress  <comment="Virtual address of the export table">;
+    XEXDIGEST HeaderHash      <comment="Hash of all XEX headers">;
+    GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
 } XEX2_HV_IMAGE_INFO;
 
 typedef struct
@@ -88,7 +88,7 @@ typedef struct
 // XEX1 (<= 186x) security structs
 typedef struct
 {
-	BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+    BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
     XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
     XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
     DWORD LoadAddress         <comment="Base address of the executable">;
@@ -111,7 +111,7 @@ typedef struct
 // XEX% (<= 1746) security structs
 typedef struct
 {
-	BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
+    BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
     XEXDIGEST ImageHash        <comment="SHA-1 hash of the image page descriptors">;
     XEXDIGEST ImportDigest     <comment="SHA-1 hash of import tables">;
     DWORD LoadAddress          <comment="Base address of the executable">;
@@ -133,15 +133,15 @@ typedef struct
 typedef struct
 {
     DWORD Size                           <comment="Size of security info + page descriptors">;
-	BYTE Signature[0x100]      			 <comment="RSA-2048 signature of this xex">;
-	XEXDIGEST HeaderHash;
-	XEXDIGEST ImageHash;
-    DWORD LoadAddress          			 <comment="Base address of the executable">;
+    BYTE Signature[0x100]                   <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST HeaderHash;
+    XEXDIGEST ImageHash;
+    DWORD LoadAddress                       <comment="Base address of the executable">;
     DWORD ImageSize                      <comment="Size of the inner executable image">;
-	DWORD CurrentVersion;
-	DWORD LowestAcceptableVersion;
+    DWORD CurrentVersion;
+    DWORD LowestAcceptableVersion;
     WORD PageDescriptorCount             <comment="Number of executable page descriptors">;
-	WORD ImageFlags                      <comment="Inner executable related flags">;
+    WORD ImageFlags                      <comment="Inner executable related flags">;
 } XEX_2D_SECURITY_INFO;
 
 typedef struct
@@ -237,12 +237,12 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
         case PEModuleName:         XEXSTRING                    PEModuleName;          break;
         case BuildVersions:        XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
-		case BuildVersions_OldKey: XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
+        case BuildVersions_OldKey: XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
         case TLSData:              XEX2_TLS_DATA                TLSData;               break;
         case TLSData_OldKey:       XEX2_TLS_DATA                TLSData;               break;
         case ExecutionID:          XEX2_EXECUTION_ID            ExecutionID;           break;
         case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
-		case ExecutionID_XEX0:     XEX0_EXECUTION_ID			ExecutionID_XEX0;	   break;
+        case ExecutionID_XEX0:     XEX0_EXECUTION_ID            ExecutionID_XEX0;       break;
         case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
         case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
         case LANKey:               XEXKEY                       LANKey;                break;

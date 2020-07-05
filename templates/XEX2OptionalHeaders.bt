@@ -75,9 +75,9 @@ typedef struct {
     DWORD MediaId;
     VERSION Version;
     DWORD TitleId;
-	WORD UpdatedVersion;
-	WORD Region;
-	DWORD Rating;
+    WORD UpdatedVersion;
+    WORD Region;
+    DWORD Rating;
     CHAR Platform;
     CHAR ExecutableType;
     CHAR SaveGameId;
@@ -86,10 +86,10 @@ typedef struct {
 
 typedef struct {
     DWORD Unknown0;
-	DWORD Unknown4;
-	DWORD TitleId;
-	DWORD UnknownC;
-	DWORD Unknown10;
+    DWORD Unknown4;
+    DWORD TitleId;
+    DWORD UnknownC;
+    DWORD Unknown10;
 } XEX0_EXECUTION_ID;
 
 typedef struct {
