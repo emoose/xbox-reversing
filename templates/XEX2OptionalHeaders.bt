@@ -72,6 +72,19 @@ typedef struct {
 } XEX25_EXECUTION_ID;
 
 typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+	WORD UpdatedVersion;
+	WORD Region;
+	DWORD Rating;
+    CHAR Platform;
+    CHAR ExecutableType;
+    CHAR SaveGameId;
+    CHAR DiscNum;
+} XEX2D_EXECUTION_ID; // TODO: use this instead of XEX2_EXECUTION_ID when its an XEX2D
+
+typedef struct {
     DWORD Unknown0;
 	DWORD Unknown4;
 	DWORD TitleId;

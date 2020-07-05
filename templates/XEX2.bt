@@ -88,7 +88,7 @@ typedef struct
 // XEX1 (<= 186x) security structs
 typedef struct
 {
-	  BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+	BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
     XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
     XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
     DWORD LoadAddress         <comment="Base address of the executable">;
@@ -111,7 +111,7 @@ typedef struct
 // XEX% (<= 1746) security structs
 typedef struct
 {
-	  BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
+	BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
     XEXDIGEST ImageHash        <comment="SHA-1 hash of the image page descriptors">;
     XEXDIGEST ImportDigest     <comment="SHA-1 hash of import tables">;
     DWORD LoadAddress          <comment="Base address of the executable">;
@@ -129,25 +129,19 @@ typedef struct
     DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
 } XEX_25_SECURITY_INFO;
 
-// XEX- (<= 1640) security structs
-// (little sketchy on the details for XEX-...)
-typedef struct
-{
-	  BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
-    XEXDIGEST ImageHash        <comment="SHA-1 hash of the image page descriptors">;
-    XEXDIGEST ImportDigest     <comment="SHA-1 hash of import tables">;
-    DWORD LoadAddress          <comment="Base address of the executable">;
-    IMAGEFLAGS ImageFlags      <comment="Inner executable related flags">;
-    DWORD ExportTableAddress   <comment="Virtual address of the export table">;
-    DWORD Unk;
-} XEX_2D_HV_IMAGE_INFO;
-
+// XEX- (<= 1640) security struct
 typedef struct
 {
     DWORD Size                           <comment="Size of security info + page descriptors">;
-    XEX_2D_HV_IMAGE_INFO ImageInfo;
-    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
-    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+	BYTE Signature[0x100]      			 <comment="RSA-2048 signature of this xex">;
+	XEXDIGEST HeaderHash;
+	XEXDIGEST ImageHash;
+    DWORD LoadAddress          			 <comment="Base address of the executable">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+	DWORD CurrentVersion;
+	DWORD LowestAcceptableVersion;
+    WORD PageDescriptorCount             <comment="Number of executable page descriptors">;
+	WORD ImageFlags                      <comment="Inner executable related flags">;
 } XEX_2D_SECURITY_INFO;
 
 typedef struct
