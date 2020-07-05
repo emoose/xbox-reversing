@@ -89,14 +89,13 @@ typedef struct
 typedef struct
 {
     BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
-    XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
-    XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
+    XEXDIGEST HeaderHash;
+    XEXDIGEST ImageHash;
     DWORD LoadAddress         <comment="Base address of the executable">;
     XEXKEY ImageKey           <comment="Encryption key for the inner image">;
     XEXKEY MediaID            <comment="Unique ID of this image">;
     GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
     IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
-    DWORD ExportTableAddress  <comment="Virtual address of the export table">;
 } XEX1_HV_IMAGE_INFO;
 
 typedef struct
@@ -104,6 +103,7 @@ typedef struct
     DWORD Size                           <comment="Size of security info + page descriptors">;
     DWORD ImageSize                      <comment="Size of the inner executable image">;
     XEX1_HV_IMAGE_INFO ImageInfo;
+    DWORD RootImportAddress              <comment="Virtual address of the export table">;
     ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
     DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
 } XEX1_SECURITY_INFO;
@@ -242,7 +242,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case TLSData_OldKey:       XEX2_TLS_DATA                TLSData;               break;
         case ExecutionID:          XEX2_EXECUTION_ID            ExecutionID;           break;
         case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
-        case ExecutionID_XEX0:     XEX0_EXECUTION_ID            ExecutionID_XEX0;       break;
+        case ExecutionID_XEX0:     XEX0_EXECUTION_ID            ExecutionID_XEX0;      break;
         case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
         case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
         case LANKey:               XEXKEY                       LANKey;                break;
