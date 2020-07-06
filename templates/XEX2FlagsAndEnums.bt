@@ -59,6 +59,7 @@ enum IMAGEKEYS {
     MultidiskMediaIDs           = 0x000406FF,
     AlternateTitleIDs           = 0x000407FF,
     AdditionalTitleMemory       = 0x00040801,
+    IsExecutable                = 0x000E0001, // XEX3F only? maybe means NoExports?
     ImportsByName               = 0x00E10302,
     ExportsByName               = 0x00E10402,
     UserModeImportDeps          = 0x00E105FF,

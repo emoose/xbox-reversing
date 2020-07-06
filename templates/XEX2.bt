@@ -267,6 +267,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
         case OriginalBaseAddress_XEX3F:     IMAGE_DATA_DIRECTORY         PEExports;             break;
         case XexSections:          XEX3F_SECTION_HEADERS        XexSections;           break;
+        case BuildVersions_XEX3F:  IMAGE_DATA_DIRECTORY         BuildVersions_XEX3F<comment="Points to .XBLD section data inside PE">; break;
         case ExecutionID:
             if(xexType == 0x3F)
                 XEX3F_EXECUTION_ID ExecutionID;
