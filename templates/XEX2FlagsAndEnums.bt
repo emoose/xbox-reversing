@@ -8,7 +8,7 @@
 //--------------------------------------
 enum IMAGEKEYS {
     SizeOfHeaders               = 0x00000101, // XEX0-only? seems it should always match SizeOfHeaders in main XEX header
-//  Unknown_1FF                 = 0x000001FF, // 1434 seems to create this, unsure what for
+    XexSections                 = 0x000001FF, // XEX3F-only? 1434 seems to create this
 //  ModuleFlags_XEX0            = 0x00000201, // stores XEX flags (title/system, exe/dll) in XEX0 executables
     OriginalBaseAddress_XEX3F   = 0x00000201,
     HeaderSectionTable          = 0x000002FF,

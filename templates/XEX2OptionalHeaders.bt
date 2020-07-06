@@ -49,6 +49,28 @@ typedef struct {
 } XEX2_FILE_DATA_DESCRIPTOR;
 
 typedef struct {
+    DWORD   SectionSize;
+    struct XEX3F_SECTION_HEADER {
+        // No idea about these two, never seen them set
+        // There's code that seems to skip +8 bytes when building this, maybe skips over these two
+        DWORD Unk0; 
+        DWORD Unk4;
+    
+        // These seem to match up with values inside PE section headers
+        DWORD VirtualAddress;
+        DWORD VirtualSize;
+        DWORD RawAddress;
+        DWORD RawSize;
+    
+        // Unsure about these, value does seem very similar to XEX2 HV_PAGE_INFO values tho...
+        DWORD Info : 4;
+        DWORD Size : 28;
+    
+        DWORD Unk1C; // no idea, always seems to be 0?
+    } Headers[(SectionSize - 4) / sizeof(XEX3F_SECTION_HEADER)];
+} XEX3F_SECTION_HEADERS;
+
+typedef struct {
     DWORD MediaId;
     VERSION Version;
     VERSION BaseVersion;
