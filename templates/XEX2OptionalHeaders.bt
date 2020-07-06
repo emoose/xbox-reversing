@@ -46,7 +46,7 @@ typedef struct {
             XEXDIGEST Digest;
         } Block;
     }
-} XEX2_FILE_DATA_DESCRIPTOR;
+} XEX_FILE_DATA_DESCRIPTOR;
 
 typedef struct {
     DWORD   SectionSize;
@@ -131,7 +131,7 @@ typedef struct {
 typedef struct {
     DWORD Size;
     DWORD CustomServiceIDs[4];
-} XEX2_SERVICE_ID_LIST;
+} XEX_SERVICE_ID_LIST;
 
 typedef struct {
     DWORD   SectionSize;
@@ -171,27 +171,27 @@ typedef struct {
     DWORD   AddressOfRawData;
     DWORD   SizeOfRawData;
     DWORD   SizeOfTlsData;
-} XEX2_TLS_DATA;
+} XEX_TLS_DATA;
 
 typedef struct {
     DWORD   Checksum;
     time_t  Timestamp;
-} XEX2_VITAL_STATS;
+} XEX_VITAL_STATS;
 
 typedef struct {
     DWORD BeginFunctionThunkAddress;
     DWORD EndFunctionThunkAddress;
-} XEX2_CALLCAP_IMPORTS;
+} XEX_CALLCAP_IMPORTS;
 
 typedef struct {
     DWORD   SectionSize;
     DWORD   LogoSize;
     CHAR    Logo[LogoSize];
-} XEX2_MSLOGO;
+} XEX_MSLOGO;
 
 typedef struct {
     CHAR    Ratings[64];
-} XEX2_GAMERATINGS;
+} XEX_GAMERATINGS;
 
 typedef struct {
     DWORD       XPos<format=hex>;
@@ -216,23 +216,25 @@ typedef struct {
     DWORD            DeltaImageSourceSize;
     DWORD            DeltaImageTargetOffset;
     LZX_DELTA_CHUNK  DeltaImageHeaderPatch;
-} XEX2_DELTA_PATCH_DESCRIPTOR;
+} XEX_DELTA_PATCH_DESCRIPTOR;
 
 // Import descriptor used in XEX1+ (header key 0x103FF)
+// Also used for header key 0x102FF in XEX25 (1746)
 typedef struct {
     DWORD   SectionSize;
     DWORD   NameTableSize;
     DWORD   ModuleCount;
     CHAR    LibNames[NameTableSize] <comment="Can contain multiple strings">;
     struct XEX2_IMPORT_TABLE_ORG {
-        DWORD     Size;
+        DWORD     TableSize;
         
         // next section is HV_IMAGE_IMPORT_TABLE struct
         XEXDIGEST NextImportDigest;
         DWORD     ModuleNumber;
         VERSION   Version;
         VERSION   VersionMin;
-        SHORT     NameIndex;
+        BYTE      Unused;
+        BYTE      ModuleIndex;
         SHORT     ImportCount;
         
         DWORD     ImportTable[ImportCount];
@@ -244,25 +246,25 @@ typedef struct {
     {
         ulCurPos = FTell();
         XEX2_IMPORT_TABLE_ORG Libs;
-        FSeek(ulCurPos + Libs.Size);
+        FSeek(ulCurPos + Libs.TableSize);
     }
 } XEX2_IMPORT_DESCRIPTOR;
 
-// Import descriptor used in XEX2D, maybe all pre-XEX1 versions? (header key 0x102FF)
+// Import descriptor used in XEX2D (header key 0x102FF)
 typedef struct {
     DWORD   SectionSize;
     DWORD   NameTableSize;
     DWORD   ModuleCount;
     CHAR    LibNames[NameTableSize] <comment="Can contain multiple strings">;
     struct XEX_IMPORT_TABLE_ORG {
-        DWORD     Size;
+        DWORD     TableSize;
         
         // next section is HV_IMAGE_IMPORT_TABLE struct
         XEXDIGEST NextImportDigest;
         DWORD     ModuleNumber;
         VERSION   Version;
         BYTE      Unused;
-        BYTE      NameIndex;
+        BYTE      ModuleIndex;
         SHORT     ImportCount;
         
         DWORD     ImportTable[ImportCount];
@@ -274,6 +276,6 @@ typedef struct {
     {
         ulCurPos = FTell();
         XEX_IMPORT_TABLE_ORG Libs;
-        FSeek(ulCurPos + Libs.Size);
+        FSeek(ulCurPos + Libs.TableSize);
     }
 } XEX_IMPORT_DESCRIPTOR;

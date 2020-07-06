@@ -246,8 +246,8 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
     switch(DirectoryEntries[x].Key)
     {
         case HeaderSectionTable:   XEX2_RESOURCES               HeaderSectionTable;    break;
-        case FileDataDescriptor:   XEX2_FILE_DATA_DESCRIPTOR    FileDataDescriptor;    break;
-        case DeltaPatchDescriptor: XEX2_DELTA_PATCH_DESCRIPTOR  DeltaPatchDescriptor;  break;
+        case FileDataDescriptor:   XEX_FILE_DATA_DESCRIPTOR    FileDataDescriptor;    break;
+        case DeltaPatchDescriptor: XEX_DELTA_PATCH_DESCRIPTOR  DeltaPatchDescriptor;  break;
         case BoundingPath:         XEXSTRING                    BoundingPath;          break;
         case Imports:              XEX2_IMPORT_DESCRIPTOR       Imports;               break;
         case Imports_OldKey:       
@@ -256,19 +256,19 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
             else
                 XEX_IMPORT_DESCRIPTOR    Imports;
             break;
-        case VitalStats:           XEX2_VITAL_STATS             VitalStats;            break;
-        case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
+        case VitalStats:           XEX_VITAL_STATS             VitalStats;            break;
+        case CallcapImports:       XEX_CALLCAP_IMPORTS         CallcapImports;        break;
         case PEModuleName:         XEXSTRING                    PEModuleName;          break;
         case BuildVersions:        XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
         case BuildVersions_OldKey: XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
-        case TLSData:              XEX2_TLS_DATA                TLSData;               break;
-        case TLSData_OldKey:       XEX2_TLS_DATA                TLSData;               break;
+        case TLSData:              XEX_TLS_DATA                TLSData;               break;
+        case TLSData_OldKey:       XEX_TLS_DATA                TLSData;               break;
         case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
         case ExecutionID_XEX0:     XEX0_EXECUTION_ID            ExecutionID_XEX0;      break;
-        case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
-        case GameRatings:          XEX2_GAMERATINGS             GameRatings;           break;
+        case ServiceIDList:        XEX_SERVICE_ID_LIST         ServiceIDList;         break;
+        case GameRatings:          XEX_GAMERATINGS             GameRatings;           break;
         case LANKey:               XEXKEY                       LANKey;                break;
-        case MicrosoftLogo:        XEX2_MSLOGO                  MicrosoftLogo;         break;
+        case MicrosoftLogo:        XEX_MSLOGO                  MicrosoftLogo;         break;
         case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
         case OriginalBaseAddress_XEX3F:     IMAGE_DATA_DIRECTORY         PEExports;             break;
         case XexSections:          XEX3F_SECTION_HEADERS        XexSections;           break;
