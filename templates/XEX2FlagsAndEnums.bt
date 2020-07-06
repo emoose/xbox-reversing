@@ -27,6 +27,7 @@ enum IMAGEKEYS {
     OriginalBaseAddress         = 0x00010001,
     ExecutionID_XEX0            = 0x00010005,
     EntryPoint                  = 0x00010100,
+    FastcapEnabled_XEX2D        = 0x00010200,
     PEBase                      = 0x00010201,
     Imports_OldKey              = 0x000102FF, // XEX25 key
     PEExports_XEX2D             = 0x00010300,
@@ -54,6 +55,7 @@ enum IMAGEKEYS {
     ServiceIDList               = 0x000401FF,
     WorkspaceSize               = 0x00040201,
     GameRatings                 = 0x00040310,
+    SpaName                     = 0x000403FF, // XEX2D only?
     LANKey                      = 0x00040404,
     MicrosoftLogo               = 0x000405FF,
     MultidiskMediaIDs           = 0x000406FF,

@@ -250,7 +250,8 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case DeltaPatchDescriptor: XEX2_DELTA_PATCH_DESCRIPTOR  DeltaPatchDescriptor;  break;
         case BoundingPath:         XEXSTRING                    BoundingPath;          break;
         case Imports:              XEX2_IMPORT_DESCRIPTOR       Imports;               break;
-        case Imports_OldKey:       XEX2_IMPORT_DESCRIPTOR       Imports;               break;
+        //TODO: fix import descriptor struct for XEX2D!
+        //case Imports_OldKey:       XEX2_IMPORT_DESCRIPTOR       Imports;               break;
         case VitalStats:           XEX2_VITAL_STATS             VitalStats;            break;
         case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
         case PEModuleName:         XEXSTRING                    PEModuleName;          break;
@@ -267,6 +268,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
         case OriginalBaseAddress_XEX3F:     IMAGE_DATA_DIRECTORY         PEExports;             break;
         case XexSections:          XEX3F_SECTION_HEADERS        XexSections;           break;
+        case SpaName:              XEXSTRING                    SpaName;               break;
         case BuildVersions_XEX3F:  IMAGE_DATA_DIRECTORY         BuildVersions_XEX3F<comment="Points to .XBLD section data inside PE">; break;
         case ExecutionID:
             if(xexType == 0x3F)
