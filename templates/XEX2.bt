@@ -250,8 +250,12 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case DeltaPatchDescriptor: XEX2_DELTA_PATCH_DESCRIPTOR  DeltaPatchDescriptor;  break;
         case BoundingPath:         XEXSTRING                    BoundingPath;          break;
         case Imports:              XEX2_IMPORT_DESCRIPTOR       Imports;               break;
-        //TODO: fix import descriptor struct for XEX2D!
-        case Imports_OldKey:       XEX_IMPORT_DESCRIPTOR        Imports;               break;
+        case Imports_OldKey:       
+            if(xexType == 0x25)
+                XEX2_IMPORT_DESCRIPTOR   Imports;
+            else
+                XEX_IMPORT_DESCRIPTOR    Imports;
+            break;
         case VitalStats:           XEX2_VITAL_STATS             VitalStats;            break;
         case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
         case PEModuleName:         XEXSTRING                    PEModuleName;          break;
@@ -273,11 +277,11 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case ImportsByName:        IMAGE_DATA_DIRECTORY         ImportsByName;         break;
         case ExecutionID:
             if(xexType == 0x3F)
-                XEX3F_EXECUTION_ID ExecutionID;
+                XEX3F_EXECUTION_ID   ExecutionID;
             else if(xexType == 0x2D)
-                XEX2D_EXECUTION_ID ExecutionID;
+                XEX2D_EXECUTION_ID   ExecutionID;
             else
-                XEX2_EXECUTION_ID ExecutionID;
+                XEX2_EXECUTION_ID    ExecutionID;
             break;
         default:
             if(headerLen == 0xFF)
