@@ -82,14 +82,30 @@ typedef struct {
     CHAR ExecutableType;
     CHAR SaveGameId;
     CHAR DiscNum;
-} XEX2D_EXECUTION_ID; // TODO: use this instead of XEX2_EXECUTION_ID when its an XEX2D
+} XEX2D_EXECUTION_ID;
 
 typedef struct {
-    DWORD Unknown0;
-    DWORD Unknown4;
+    DWORD MediaId;
+    VERSION Version;
     DWORD TitleId;
-    DWORD UnknownC;
-    DWORD Unknown10;
+    WORD UpdatedVersion;
+    WORD Region;
+    CHAR Platform;
+    CHAR ExecutableType;
+    CHAR SaveGameId;
+    CHAR DiscNum;
+} XEX3F_EXECUTION_ID;
+
+typedef struct {
+    DWORD MediaId;
+    VERSION Version;
+    DWORD TitleId;
+    WORD UpdatedVersion;
+    WORD Region;
+    CHAR Platform;
+    CHAR ContentType;
+    CHAR SaveGameId;
+    CHAR DiscNum;
 } XEX0_EXECUTION_ID;
 
 typedef struct {

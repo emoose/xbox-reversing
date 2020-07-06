@@ -37,7 +37,7 @@ typedef struct {
 
 typedef struct {
     DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
-    MODULEFLAGS ModuleFlags          <comment="Flags for this XEX">;
+    XEX0_MODULEFLAGS ModuleFlags     <comment="Flags for this XEX">;
     DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
     DWORD SizeOfDiscardableHeaders   <comment="Size of headers that can be discarded after XEX load">;
     DWORD LoadAddress                <comment="Base address of the executable">;
@@ -48,8 +48,8 @@ typedef struct {
 typedef struct {
     DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
     DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
-    DWORD ImageBase                  <comment="Base address of image, minus XEX SizeOfHeaders">;
-    DWORD SizeOfImage                <comment="Size of image, plus XEX SizeOfHeaders">;
+    DWORD LoadAddress                <comment="Base address of image, minus XEX SizeOfHeaders">;
+    DWORD ImageSize                  <comment="Size of image, plus XEX SizeOfHeaders">;
     DWORD HeaderDirectoryEntryCount;
 } IMAGE_XEX0_HEADER;
 
@@ -133,10 +133,10 @@ typedef struct
 typedef struct
 {
     DWORD Size                           <comment="Size of security info + page descriptors">;
-    BYTE Signature[0x100]                   <comment="RSA-2048 signature of this xex">;
+    BYTE Signature[0x100]                <comment="RSA-2048 signature of this xex">;
     XEXDIGEST HeaderHash;
     XEXDIGEST ImageHash;
-    DWORD LoadAddress                       <comment="Base address of the executable">;
+    DWORD LoadAddress                    <comment="Base address of the executable">;
     DWORD ImageSize                      <comment="Size of the inner executable image">;
     DWORD CurrentVersion;
     DWORD LowestAcceptableVersion;
@@ -152,19 +152,20 @@ typedef struct
 } HV_PAGE_INFO;
 
 // Start mapping
-
 local DWORD magic = ReadUInt(0);
+local DWORD xexType = magic & 0xFF;
 FSeek(0);
 
 local DWORD xexHeaderSize = sizeof(IMAGE_XEX_HEADER);
 local char hasSecurityInfo = 1;
-if(magic == 0x58455830) // XEX0 (1332)
+
+if(xexType == 0x30) // XEX0 (>=1332)
 {
     IMAGE_XEX0_HEADER XexHeader;
     hasSecurityInfo = 0;
     xexHeaderSize = sizeof(IMAGE_XEX0_HEADER);
 }
-else if(magic == 0x5845583F) // XEX? (<=1529)
+else if(xexType == 0x3F) // XEX? (>=1434)
 {
     IMAGE_XEX_3F_HEADER XexHeader;
     hasSecurityInfo = 0;
@@ -182,19 +183,19 @@ if(hasSecurityInfo)
     FSeek(XexHeader.SecurityInfo);
     
     // Read in correct security info struct for this XEX version
-    if(magic == 0x58455832)      // XEX2 (>=1888)
+    if(xexType == 0x32)      // XEX2 (>=186x)
     {
         XEX2_SECURITY_INFO SecurityInfo;
     }
-    else if(magic == 0x58455831) // XEX1 (<=186x)
+    else if(xexType == 0x31) // XEX1 (<=186x)
     {
         XEX1_SECURITY_INFO SecurityInfo;
     }
-    else if(magic == 0x58455825) // XEX% (<=1746)
+    else if(xexType == 0x25) // XEX% (<=1746)
     {
         XEX_25_SECURITY_INFO SecurityInfo;
     }
-    else if(magic == 0x5845582D) // XEX- (<=1640)
+    else if(xexType == 0x2D) // XEX- (<=1640)
     {
         XEX_2D_SECURITY_INFO SecurityInfo;
     }
@@ -219,7 +220,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
             FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
             XEX_PRIVILEGES_32 Privileges_32;
         }
-        if(magic == 0x58455830 && DirectoryEntries[x].Key == OriginalBaseAddress_XEX3F)
+        if(xexType == 0x30 && DirectoryEntries[x].Key == OriginalBaseAddress_XEX3F)
         {
             FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
             XEX0_MODULEFLAGS ModuleFlags;
@@ -234,11 +235,11 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
     // Handle specific ones first
     FSeek(DirectoryEntries[x].Value);
     
-    if(magic == 0x58455830 && DirectoryEntries[x].Key == Imports)
+    if(xexType == 0x30 && DirectoryEntries[x].Key == Imports)
     {
         // XEX0 SPA file name, uses same key as XEX2 imports descriptor
         // (seems buggy, won't output string past 4 byte boundaries, eg. hello.txt -> hello.tx)
-        XEXSTRING SpaFileName;
+        XEXSTRING SpaName;
         continue;
     }
     
@@ -257,7 +258,6 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case BuildVersions_OldKey: XEXIMAGE_LIBRARY_VERSIONS    BuildVersions;         break;
         case TLSData:              XEX2_TLS_DATA                TLSData;               break;
         case TLSData_OldKey:       XEX2_TLS_DATA                TLSData;               break;
-        case ExecutionID:          XEX2_EXECUTION_ID            ExecutionID;           break;
         case ExecutionID_XEX25:    XEX25_EXECUTION_ID           ExecutionID_XEX25;     break;
         case ExecutionID_XEX0:     XEX0_EXECUTION_ID            ExecutionID_XEX0;      break;
         case ServiceIDList:        XEX2_SERVICE_ID_LIST         ServiceIDList;         break;
@@ -266,6 +266,14 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case MicrosoftLogo:        XEX2_MSLOGO                  MicrosoftLogo;         break;
         case ExportsByName:        IMAGE_DATA_DIRECTORY         PEExports;             break;
         case OriginalBaseAddress_XEX3F:     IMAGE_DATA_DIRECTORY         PEExports;             break;
+        case ExecutionID:
+            if(xexType == 0x3F)
+                XEX3F_EXECUTION_ID ExecutionID;
+            else if(xexType == 0x2D)
+                XEX2D_EXECUTION_ID ExecutionID;
+            else
+                XEX2_EXECUTION_ID ExecutionID;
+            break;
         default:
             if(headerLen == 0xFF)
                 OPTIONALHEADERDATA optData;

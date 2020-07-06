@@ -7,7 +7,7 @@
 // Purpose:  Defines basic flags and enums
 //--------------------------------------
 enum IMAGEKEYS {
-    //ModuleFlags_XEX0            = 0x00000201, // seems to store XEX flags (title/system, exe/dll) in XEX0 executables
+//  ModuleFlags_XEX0            = 0x00000201, // stores XEX flags (title/system, exe/dll) in XEX0 executables
     OriginalBaseAddress_XEX3F   = 0x00000201,
     HeaderSectionTable          = 0x000002FF,
     FileDataDescriptor          = 0x000003FF,
@@ -27,6 +27,7 @@ enum IMAGEKEYS {
     EntryPoint                  = 0x00010100,
     PEBase                      = 0x00010201,
     Imports_OldKey              = 0x000102FF, // XEX25 key
+//  SPAFileName_XEX0            = 0x000103FF,
     Imports                     = 0x000103FF,
     PEExports_XEX1              = 0x00010400,
     StackSize_XEX25             = 0x00010400, // XEX25 key
@@ -77,7 +78,8 @@ typedef struct MODULEFLAGS {
 typedef struct XEX0_MODULEFLAGS {
     DWORD  SystemProcess : 1;
     DWORD  TitleProcess  : 1;
-    DWORD  Dll : 1;
+    DWORD  Dll           : 1;
+    DWORD  Debugger      : 1 <comment="XEX3F ('XEX?') only">;
 };
 
 typedef struct ALLOWEDMEDIATYPES {
