@@ -218,12 +218,13 @@ typedef struct {
     LZX_DELTA_CHUNK  DeltaImageHeaderPatch;
 } XEX2_DELTA_PATCH_DESCRIPTOR;
 
+// Import descriptor used in XEX1+ (header key 0x103FF)
 typedef struct {
     DWORD   SectionSize;
     DWORD   NameTableSize;
     DWORD   ModuleCount;
     CHAR    LibNames[NameTableSize] <comment="Can contain multiple strings">;
-    struct XEX_IMPORT_TABLE_ORG {
+    struct XEX2_IMPORT_TABLE_ORG {
         DWORD     Size;
         
         // next section is HV_IMAGE_IMPORT_TABLE struct
@@ -242,7 +243,37 @@ typedef struct {
     for (ulIndex=0; ulIndex < ModuleCount; ulIndex++)
     {
         ulCurPos = FTell();
-        XEX_IMPORT_TABLE_ORG Libs;
+        XEX2_IMPORT_TABLE_ORG Libs;
         FSeek(ulCurPos + Libs.Size);
     }
 } XEX2_IMPORT_DESCRIPTOR;
+
+// Import descriptor used in XEX2D, maybe all pre-XEX1 versions? (header key 0x102FF)
+typedef struct {
+    DWORD   SectionSize;
+    DWORD   NameTableSize;
+    DWORD   ModuleCount;
+    CHAR    LibNames[NameTableSize] <comment="Can contain multiple strings">;
+    struct XEX_IMPORT_TABLE_ORG {
+        DWORD     Size;
+        
+        // next section is HV_IMAGE_IMPORT_TABLE struct
+        XEXDIGEST NextImportDigest;
+        DWORD     ModuleNumber;
+        VERSION   Version;
+        BYTE      Unused;
+        BYTE      NameIndex;
+        SHORT     ImportCount;
+        
+        DWORD     ImportTable[ImportCount];
+    };
+    
+    local ULONG ulIndex=0;
+    local ULONG ulCurPos = 0;
+    for (ulIndex=0; ulIndex < ModuleCount; ulIndex++)
+    {
+        ulCurPos = FTell();
+        XEX_IMPORT_TABLE_ORG Libs;
+        FSeek(ulCurPos + Libs.Size);
+    }
+} XEX_IMPORT_DESCRIPTOR;

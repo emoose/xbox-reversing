@@ -251,7 +251,7 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         case BoundingPath:         XEXSTRING                    BoundingPath;          break;
         case Imports:              XEX2_IMPORT_DESCRIPTOR       Imports;               break;
         //TODO: fix import descriptor struct for XEX2D!
-        //case Imports_OldKey:       XEX2_IMPORT_DESCRIPTOR       Imports;               break;
+        case Imports_OldKey:       XEX_IMPORT_DESCRIPTOR        Imports;               break;
         case VitalStats:           XEX2_VITAL_STATS             VitalStats;            break;
         case CallcapImports:       XEX2_CALLCAP_IMPORTS         CallcapImports;        break;
         case PEModuleName:         XEXSTRING                    PEModuleName;          break;
