@@ -1,0 +1,133 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//      File: XEX2Headers.bt
+//   Authors: emoose
+//   Version: 1.0
+//   Purpose: Defines required headers used by each XEX variant
+//------------------------------------------------
+
+typedef struct {
+    DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
+    MODULEFLAGS ModuleFlags          <comment="Flags for this XEX">;
+    DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
+    DWORD SizeOfDiscardableHeaders   <comment="Size of headers that can be discarded after XEX load">;
+    DWORD SecurityInfo               <comment="Offset of XEX*_SECURITY_INFO struct",format=hex>;
+    DWORD HeaderDirectoryEntryCount  <comment="Number of directory entries">;
+} IMAGE_XEX_HEADER;
+
+typedef struct {
+    DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
+    XEX0_MODULEFLAGS ModuleFlags     <comment="Flags for this XEX">;
+    DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
+    DWORD SizeOfDiscardableHeaders   <comment="Size of headers that can be discarded after XEX load">;
+    DWORD LoadAddress                <comment="Base address of the executable">;
+    DWORD ImageSize;
+    DWORD HeaderDirectoryEntryCount  <comment="Number of directory entries">;
+} IMAGE_XEX_3F_HEADER;
+
+typedef struct {
+    DWORD Magic                      <comment="XEX_HEADER_MAGIC = 0x584558xx",format=hex>;
+    DWORD SizeOfHeaders              <comment="Size of header portion of XEX">;
+    DWORD LoadAddress                <comment="Base address of image, minus XEX SizeOfHeaders">;
+    DWORD ImageSize                  <comment="Size of image, plus XEX SizeOfHeaders">;
+    DWORD HeaderDirectoryEntryCount;
+} IMAGE_XEX0_HEADER;
+
+typedef struct
+{
+    IMAGEKEYS Key;
+    DWORD Value;
+} IMAGE_XEX_DIRECTORY_ENTRY;
+
+// XEX2 security structs
+typedef struct
+{
+    BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+    DWORD InfoSize            <comment="Size of security info structure">;
+    IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
+    DWORD LoadAddress         <comment="Base address of the executable">;
+    XEXDIGEST ImageHash       <comment="SHA-1 hash of the image page descriptors">;
+    DWORD ImportTableCount    <comment="Number of import tables">;
+    XEXDIGEST ImportDigest    <comment="SHA-1 hash of import tables">;
+    XEXKEY MediaID            <comment="Unique ID of this image">;
+    XEXKEY ImageKey           <comment="Encryption key for the inner image">;
+    DWORD ExportTableAddress  <comment="Virtual address of the export table">;
+    XEXDIGEST HeaderHash      <comment="Hash of all XEX headers">;
+    GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
+} XEX2_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    XEX2_HV_IMAGE_INFO ImageInfo;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX2_SECURITY_INFO;
+
+// XEX1 (<= 186x) security structs
+typedef struct
+{
+    BYTE Signature[0x100]     <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST HeaderHash;
+    XEXDIGEST ImageHash;
+    DWORD LoadAddress         <comment="Base address of the executable">;
+    XEXKEY ImageKey           <comment="Encryption key for the inner image">;
+    XEXKEY MediaID            <comment="Unique ID of this image">;
+    GAMEREGIONS GameRegion    <comment="Allowed regions bitfield">;
+    IMAGEFLAGS ImageFlags     <comment="Inner executable related flags">;
+} XEX1_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    XEX1_HV_IMAGE_INFO ImageInfo;
+    DWORD RootImportAddress              <comment="Virtual address of the export table">;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX1_SECURITY_INFO;
+
+// XEX% (<= 1746) security structs
+typedef struct
+{
+    BYTE Signature[0x100]      <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST ImageHash        <comment="SHA-1 hash of the image page descriptors">;
+    XEXDIGEST ImportDigest     <comment="SHA-1 hash of import tables">;
+    DWORD LoadAddress          <comment="Base address of the executable">;
+    XEXKEY ImageKey            <comment="Encryption key for the inner image">;
+    IMAGEFLAGS ImageFlags      <comment="Inner executable related flags">;
+    DWORD ExportTableAddress   <comment="Virtual address of the export table">;
+} XEX_25_HV_IMAGE_INFO;
+
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    XEX_25_HV_IMAGE_INFO ImageInfo;
+    ALLOWEDMEDIATYPES AllowedMediaTypes  <comment="Allowed media types bitfield">;
+    DWORD PageDescriptorCount            <comment="Number of executable page descriptors">;
+} XEX_25_SECURITY_INFO;
+
+// XEX- (<= 1640) security struct
+typedef struct
+{
+    DWORD Size                           <comment="Size of security info + page descriptors">;
+    BYTE Signature[0x100]                <comment="RSA-2048 signature of this xex">;
+    XEXDIGEST HeaderHash;
+    XEXDIGEST ImageHash;
+    DWORD LoadAddress                    <comment="Base address of the executable">;
+    DWORD ImageSize                      <comment="Size of the inner executable image">;
+    DWORD CurrentVersion;
+    DWORD LowestAcceptableVersion;
+    WORD PageDescriptorCount             <comment="Number of executable page descriptors">;
+    WORD ImageFlags                      <comment="Inner executable related flags">;
+} XEX_2D_SECURITY_INFO;
+
+typedef struct
+{
+    DWORD Info : 4;
+    DWORD Size : 28;
+    BYTE DataDigest[0x14];
+} HV_PAGE_INFO;
