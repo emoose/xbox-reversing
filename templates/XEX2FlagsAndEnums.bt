@@ -7,7 +7,8 @@
 // Purpose:  Defines basic flags and enums
 //--------------------------------------
 enum IMAGEKEYS {
-    OriginalBaseAddress_XEX3F   = 0x00000201, // Also seems to store XEX type (title/system, exe/dll) in XEX0 executables
+    //ModuleFlags_XEX0            = 0x00000201, // seems to store XEX flags (title/system, exe/dll) in XEX0 executables
+    OriginalBaseAddress_XEX3F   = 0x00000201,
     HeaderSectionTable          = 0x000002FF,
     FileDataDescriptor          = 0x000003FF,
     BaseReference               = 0x00000405,
@@ -71,6 +72,12 @@ typedef struct MODULEFLAGS {
     DWORD                : 22;
     DWORD  BoundPath     : 1;
     DWORD  SilentLoad    : 1;
+};
+
+typedef struct XEX0_MODULEFLAGS {
+    DWORD  SystemProcess : 1;
+    DWORD  TitleProcess  : 1;
+    DWORD  Dll : 1;
 };
 
 typedef struct ALLOWEDMEDIATYPES {

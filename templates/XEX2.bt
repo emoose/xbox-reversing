@@ -152,20 +152,23 @@ typedef struct
 } HV_PAGE_INFO;
 
 // Start mapping
-local char hasSecurityInfo = 1;
 
 local DWORD magic = ReadUInt(0);
 FSeek(0);
 
+local DWORD xexHeaderSize = sizeof(IMAGE_XEX_HEADER);
+local char hasSecurityInfo = 1;
 if(magic == 0x58455830) // XEX0 (1332)
 {
     IMAGE_XEX0_HEADER XexHeader;
     hasSecurityInfo = 0;
+    xexHeaderSize = sizeof(IMAGE_XEX0_HEADER);
 }
 else if(magic == 0x5845583F) // XEX? (<=1529)
 {
     IMAGE_XEX_3F_HEADER XexHeader;
     hasSecurityInfo = 0;
+    xexHeaderSize = sizeof(IMAGE_XEX_3F_HEADER);
 }
 else
 {
@@ -208,13 +211,18 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
         // If its privileges go back and map it
         if(DirectoryEntries[x].Key == Privileges)
         {
-            FSeek(sizeof(IMAGE_XEX_HEADER) + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
             XEX_PRIVILEGES Privileges;
         }
         if(DirectoryEntries[x].Key == Privileges_32)
         {
-            FSeek(sizeof(IMAGE_XEX_HEADER) + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
             XEX_PRIVILEGES_32 Privileges_32;
+        }
+        if(magic == 0x58455830 && DirectoryEntries[x].Key == OriginalBaseAddress_XEX3F)
+        {
+            FSeek(xexHeaderSize + (sizeof(IMAGE_XEX_DIRECTORY_ENTRY) * x) + 4);
+            XEX0_MODULEFLAGS ModuleFlags;
         }
 
         // Header is small enough to fit in the DIRECTORY_ENTRY struct
@@ -225,6 +233,15 @@ for(x = 0; x < XexHeader.HeaderDirectoryEntryCount; x++)
     
     // Handle specific ones first
     FSeek(DirectoryEntries[x].Value);
+    
+    if(magic == 0x58455830 && DirectoryEntries[x].Key == Imports)
+    {
+        // XEX0 SPA file name, uses same key as XEX2 imports descriptor
+        // (seems buggy, won't output string past 4 byte boundaries, eg. hello.txt -> hello.tx)
+        XEXSTRING SpaFileName;
+        continue;
+    }
+    
     switch(DirectoryEntries[x].Key)
     {
         case HeaderSectionTable:   XEX2_RESOURCES               HeaderSectionTable;    break;
