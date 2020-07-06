@@ -29,6 +29,7 @@ enum IMAGEKEYS {
     EntryPoint                  = 0x00010100,
     PEBase                      = 0x00010201,
     Imports_OldKey              = 0x000102FF, // XEX25 key
+    PEExports_XEX2D             = 0x00010300,
 //  SPAFileName_XEX0            = 0x000103FF,
     Imports                     = 0x000103FF,
     PEExports_XEX1              = 0x00010400,

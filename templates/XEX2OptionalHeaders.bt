@@ -51,10 +51,8 @@ typedef struct {
 typedef struct {
     DWORD   SectionSize;
     struct XEX3F_SECTION_HEADER {
-        // No idea about these two, never seen them set
-        // There's code that seems to skip +8 bytes when building this, maybe skips over these two
-        DWORD Unk0; 
-        DWORD Unk4;
+        // Field type is a guess, seems to be unused/reserved in XEX3F
+        CHAR SectionName[8];
     
         // These seem to match up with values inside PE section headers
         DWORD VirtualAddress;
@@ -66,7 +64,7 @@ typedef struct {
         DWORD Info : 4;
         DWORD Size : 28;
     
-        DWORD Unk1C; // no idea, always seems to be 0?
+        DWORD Padding1C; // no idea, always seems to be 0?
     } Headers[(SectionSize - 4) / sizeof(XEX3F_SECTION_HEADER)];
 } XEX3F_SECTION_HEADERS;
 
