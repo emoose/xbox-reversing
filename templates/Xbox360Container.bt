@@ -413,37 +413,37 @@ typedef struct _STF_DIRECTORY_BLOCK {
     STF_DIRECTORY_ENTRY Entries[0x1000 / 0x40];
 } STF_DIRECTORY_BLOCK;
 
-int64 StfComputeBackingDataBlockNumber_Old(DWORD BlockNumber)
+DWORD StfComputeBackingDataBlockNumber_Old(DWORD BlockNumber)
 {
-    local DWORD v1 = 1;
-    local DWORD dataBlock = 0;
-    if(Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat == 0)
-        v1 = v1 + 1;
+    local DWORD blocksPerTable = 1;
+    local DWORD block = 0;
+    if (!Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
+        blocksPerTable = blocksPerTable + 1;
 
-    dataBlock = BlockNumber + v1 * ((BlockNumber + 170) / 170);
-    if(BlockNumber >= 170)
+    block = BlockNumber + blocksPerTable * ((BlockNumber + 170) / 170);
+    if (BlockNumber >= 170)
     {
-        dataBlock += v1 * ((BlockNumber + 28900) / 28900);
-        if(BlockNumber >= 28900)
-            dataBlock += v1;
+        block += blocksPerTable * ((BlockNumber + 28900) / 28900);
+        if (BlockNumber >= 28900)
+            block += blocksPerTable;
     }
 
-    return dataBlock;
+    return block;
 }
 
-int64 StfComputeBackingDataBlockNumber(DWORD BlockNumber)
+DWORD StfComputeBackingDataBlockNumber(DWORD BlockNumber)
 {
-    local DWORD table_blocks = 1; // num blocks each hash table uses
-    if(Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat == 0)
-        table_blocks = 2;
+    local DWORD blocksPerTable = 1; // num blocks each hash table uses
+    if (!Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
+        blocksPerTable = 2;
 
     local DWORD base = 0xAA;
-    local QWORD block = BlockNumber;
+    local DWORD block = BlockNumber;
 
     local int i = 0;
-    for(i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++)
     {
-        block += table_blocks * ((BlockNumber + base) / base);
+        block += blocksPerTable * ((BlockNumber + base) / base);
         if (BlockNumber < base)
             break;
 
@@ -453,45 +453,48 @@ int64 StfComputeBackingDataBlockNumber(DWORD BlockNumber)
     return block;
 }
 
-int64 StfComputeLevelNBackingHashBlockNumber(DWORD blockNum, DWORD level)
+DWORD StfComputeLevelNBackingHashBlockNumber(DWORD BlockNumber, DWORD Level)
 {
-    local DWORD numTables = 1;
+    local DWORD blocksPerTable = 1;
     local DWORD blockStep0 = 0xAB;
     local DWORD blockStep1 = 0x718F;
-    if (Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat == 0)
+    if (!Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
     {
-        numTables = 2;
+        blocksPerTable = 2;
         blockStep0 = 0xAC;
         blockStep1 = 0x723A;
     }
 
-    local DWORD num = 0;
-    if (level == 0)
+    local DWORD block = 0;
+    if (Level == 0)
     {
-        num = (blockNum / 0xAA) * blockStep0;
-        if (blockNum / 0xAA == 0)
-            return num;
-
-        num = num + ((blockNum / 0x70E4) + 1) * numTables;
-        if (blockNum / 0x70E4 == 0)
-            return num;
+        block = (BlockNumber / 0xAA) * blockStep0;
+        if (BlockNumber / 0xAA != 0)
+        {
+            block = block + ((BlockNumber / 0x70E4) + 1) * blocksPerTable;
+            if (BlockNumber / 0x70E4 != 0)
+                return block + blocksPerTable;
+        }
+        return block;
     }
-    else if (level == 1)
+    
+    if (Level == 1)
     {
-        num = (blockNum / 0x70E4) * blockStep1;
-        if (blockNum / 0x70E4 == 0)
-            return num + blockStep0;
-    }
-    else
-        return blockStep1;
+        block = (BlockNumber / 0x70E4) * blockStep1;
+        if (BlockNumber / 0x70E4 != 0)
+            return block + blocksPerTable;
 
-    return num + numTables;
+        return block + blockStep0;
+    }
+    
+    // Level 2 is always at blockStep1
+    return blockStep1;
 }
 
 int64 StfsBackingBlockToOffset(DWORD BlockNumber)
 {
-    local int64 data_addr = ((Header.SizeOfHeaders + 0xFFF) / 0x1000) * 0x1000;
-    return data_addr + (BlockNumber * 0x1000);
+    local int64 dataAddr = ((Header.SizeOfHeaders + 0xFFF) / 0x1000) * 0x1000;
+    return dataAddr + (BlockNumber * 0x1000);
 }
 
 int64 StfsDataBlockToOffset(DWORD BlockNumber)
@@ -508,18 +511,18 @@ int64 StfsDataBlockToOffset_Old(DWORD BlockNumber)
 // The Level0.NextBlockNumber value is important for non-ReadOnlyFormat packages, as those packages can be heavily fragmented, with files consisting of blocks located all throughout the package
 // In contrast, ReadOnlyFormat packages like LIVE/PIRS usually have file blocks stored contiguously (even with a Contiguous flag in the STF_DIRECTORY_ENTRY - not sure how much that flag can be trusted though)
 // (this is also why eg. tools like wxPirs mostly work fine with LIVE/PIRS, but almost always completely fails with any CON package - as it never checks the hash tables for NextBlockNumber)
-DWORD StfsGetNextBlock(DWORD BlockNum)
+DWORD StfsGetNextBlock(DWORD BlockNumber)
 {
-    local DWORD HashBlockNum = 0;
-    local int64 HashBlockOffset = 0;
-    local DWORD HashBlockEntry = 0;
+    local DWORD hashBlockNum = 0;
+    local int64 hashBlockOffset = 0;
+    local DWORD hashBlockEntry = 0;
 
-    local int64 RedundantBlockOffset = Metadata.VolumeDescriptor.Stfs.RootActiveIndex ? 0x1000 : 0;
+    local int64 redundantBlockOffset = Metadata.VolumeDescriptor.Stfs.RootActiveIndex ? 0x1000 : 0;
 
     // Read-only packages don't contain redundant hash blocks, we can return the next block directly from the L0 table for those
     // Otherwise we need to check upper levels first to find if we should use each levels redundant block or not
     if (Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat)
-        RedundantBlockOffset = 0;
+        redundantBlockOffset = 0;
     else
     {
         // Non-ReadOnlyFormat packages contain redundant blocks for each hash table, located directly after it
@@ -532,57 +535,57 @@ DWORD StfsGetNextBlock(DWORD BlockNum)
         
         if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0x70E4)
         {
-            HashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNum, 2);
-            HashBlockOffset = StfsBackingBlockToOffset(HashBlockNum);
-            HashBlockOffset += RedundantBlockOffset;
+            hashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNumber, 2);
+            hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+            hashBlockOffset += redundantBlockOffset;
 
-            FSeek(HashBlockOffset);
+            FSeek(hashBlockOffset);
             STF_HASH_BLOCK HashBlock <hidden=true>;
 
-            HashBlockEntry = (BlockNum / 0x70E4) % 0xAA;
-            RedundantBlockOffset = HashBlock.Entries[HashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+            hashBlockEntry = (BlockNumber / 0x70E4) % 0xAA;
+            redundantBlockOffset = HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
         }
         if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0xAA)
         {
-            HashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNum, 1);
-            HashBlockOffset = StfsBackingBlockToOffset(HashBlockNum);
-            HashBlockOffset += RedundantBlockOffset;
+            hashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNumber, 1);
+            hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+            hashBlockOffset += redundantBlockOffset;
 
-            FSeek(HashBlockOffset);
+            FSeek(hashBlockOffset);
             STF_HASH_BLOCK HashBlock <hidden=true>;
 
-            HashBlockEntry = (BlockNum / 0xAA) % 0xAA;
-            RedundantBlockOffset = HashBlock.Entries[HashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+            hashBlockEntry = (BlockNumber / 0xAA) % 0xAA;
+            redundantBlockOffset = HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
         }
     }
 
-    HashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNum, 0);
-    HashBlockOffset = StfsBackingBlockToOffset(HashBlockNum);
-    HashBlockOffset += RedundantBlockOffset;
+    hashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNumber, 0);
+    hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+    hashBlockOffset += redundantBlockOffset;
 
-    FSeek(HashBlockOffset);
+    FSeek(hashBlockOffset);
     STF_HASH_BLOCK HashBlock <hidden=true>;
 
-    HashBlockEntry = BlockNum % 0xAA;
-    return HashBlock.Entries[HashBlockEntry].Level.Level0.NextBlockNumber;
+    hashBlockEntry = BlockNumber % 0xAA;
+    return HashBlock.Entries[hashBlockEntry].Level.Level0.NextBlockNumber;
 }
 
-void StfsReadDirectory(int64 BlockNum, int NumBlocks)
+void StfsReadDirectory(int64 BlockNumber, int NumBlocks)
 {
-    Printf("Directory block: %d block count: %d\n", BlockNum, NumBlocks);
-    local int CurrentBlock = BlockNum;
-    local int64 CurrentOffset = 0;
+    Printf("Directory block: %d block count: %d\n", BlockNumber, NumBlocks);
+    local int currentBlock = BlockNumber;
+    local int64 currentOffset = 0;
     local int dirIdx = 0;
     for (dirIdx = 0; dirIdx < NumBlocks; dirIdx++)
     {
-        if (CurrentBlock == 0xFFFFFF)
+        if (currentBlock == 0xFFFFFF)
             break;
 
-        CurrentOffset = StfsDataBlockToOffset(CurrentBlock);
-        Printf("Directory at 0x%X (block %d, backing %d)\n", CurrentOffset, CurrentBlock, StfComputeBackingDataBlockNumber(CurrentBlock));
-        Printf("(StfsDataBlockToOffset_Old: 0x%X)\n", StfsDataBlockToOffset_Old(CurrentBlock));
+        currentOffset = StfsDataBlockToOffset(currentBlock);
+        Printf("Directory at 0x%X (block %d, backing %d)\n", currentOffset, currentBlock, StfComputeBackingDataBlockNumber(currentBlock));
+        Printf("(StfsDataBlockToOffset_Old: 0x%X)\n", StfsDataBlockToOffset_Old(currentBlock));
 
-        FSeek(CurrentOffset);
+        FSeek(currentOffset);
 
         STF_DIRECTORY_BLOCK Directory;
         local int i = 0;
@@ -600,7 +603,7 @@ void StfsReadDirectory(int64 BlockNum, int NumBlocks)
             }
         }
 
-        CurrentBlock = StfsGetNextBlock(CurrentBlock);
+        currentBlock = StfsGetNextBlock(currentBlock);
     }
 }
 
@@ -609,33 +612,32 @@ DWORD Int24(BYTE b0, BYTE b1, BYTE b2)
     return ((b2 & 0xFF) << 16) | ((b1 & 0xFF) << 8) | (b0 & 0xFF);
 }
 
-// Map our our XCONTENT file header
+// Map out the XCONTENT file header
 XCONTENT_HEADER Header;
-if(Header.SizeOfHeaders == 0)
+if (Header.SizeOfHeaders == 0)
     return; // No metadata in this file, maybe GfWL .lic?
 
 XCONTENT_METADATA Metadata;
 
-local WORD ExtraMetadataMagic = ReadInt(startof(Metadata) + sizeof(XCONTENT_METADATA));
-if (Header.SizeOfHeaders > 0x971A || ExtraMetadataMagic != 0)
+local WORD extraMetadataMagic = ReadInt(startof(Metadata) + sizeof(XCONTENT_METADATA));
+if (Header.SizeOfHeaders > 0x971A || extraMetadataMagic != 0) // 0x971A = sizeof(XCONTENT_HEADER) + sizeof(XCONTENT_METADATA)
     XCONTENT_METADATA_INSTALLER InstallerMetadata;
 
 // no SVOD support atm
 if (Metadata.VolumeType != STFS_VOLUME)
     return;
 
-local DWORD DirectoryBlock = Int24(Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber0,
+local DWORD directoryBlock = Int24(Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber0,
     Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber1, Metadata.VolumeDescriptor.Stfs.DirectoryFirstBlockNumber2);
 
-local DWORD NumDirectoryBlocks = Int24(Metadata.VolumeDescriptor.Stfs.DirectoryAllocationBlocks0,
+local DWORD numDirectoryBlocks = Int24(Metadata.VolumeDescriptor.Stfs.DirectoryAllocationBlocks0,
     Metadata.VolumeDescriptor.Stfs.DirectoryAllocationBlocks1, 0);
 
-StfsReadDirectory(DirectoryBlock, NumDirectoryBlocks);
+StfsReadDirectory(directoryBlock, numDirectoryBlocks);
 
-local DWORD CurrentBlock = DirectoryBlock;
-local DWORD HashBlockNum = 0;
-local int64 HashBlockOffset = 0;
-local DWORD HashBlockEntry = 0;
+local DWORD hashBlockNum = 0;
+local int64 hashBlockOffset = 0;
+local DWORD hashBlockEntry = 0;
 
 local int64 RedundantBlockOffset = !Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat &&
     Metadata.VolumeDescriptor.Stfs.RootActiveIndex ? 0x1000 : 0;
@@ -644,50 +646,50 @@ if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0xAA)
 {
     if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0x70E4)
     {
-        HashBlockNum = StfComputeLevelNBackingHashBlockNumber(CurrentBlock, 2);
-        HashBlockOffset = StfsBackingBlockToOffset(HashBlockNum);
-        HashBlockOffset += RedundantBlockOffset;
+        hashBlockNum = StfComputeLevelNBackingHashBlockNumber(directoryBlock, 2);
+        hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+        hashBlockOffset += RedundantBlockOffset;
 
-        Printf("Directory L2 hash block at 0x%X (block %d)\n", HashBlockOffset, HashBlockNum);
+        Printf("Directory L2 hash block at 0x%X (block %d)\n", hashBlockOffset, hashBlockNum);
         if (RedundantBlockOffset != 0)
             Printf("(^ shifted by upper level ActiveIndex!)");
 
-        FSeek(HashBlockOffset);
+        FSeek(hashBlockOffset);
         STF_HASH_BLOCK DirectoryL2HashBlock;
 
-        HashBlockEntry = (CurrentBlock / 0x28900) % 0xAA;
+        hashBlockEntry = (directoryBlock / 0x28900) % 0xAA;
 
         RedundantBlockOffset = !Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat &&
-            DirectoryL2HashBlock.Entries[HashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+            DirectoryL2HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
     }
 
-    HashBlockNum = StfComputeLevelNBackingHashBlockNumber(CurrentBlock, 1);
-    HashBlockOffset = StfsBackingBlockToOffset(HashBlockNum);
-    HashBlockOffset += RedundantBlockOffset;
+    hashBlockNum = StfComputeLevelNBackingHashBlockNumber(directoryBlock, 1);
+    hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+    hashBlockOffset += RedundantBlockOffset;
 
-    Printf("Directory L1 hash block at 0x%X (block %d)\n", HashBlockOffset, HashBlockNum);
+    Printf("Directory L1 hash block at 0x%X (block %d)\n", hashBlockOffset, hashBlockNum);
     if (RedundantBlockOffset != 0)
     {
         Printf("(^ shifted by upper level ActiveIndex!)");
     }
 
-    FSeek(HashBlockOffset);
+    FSeek(hashBlockOffset);
     STF_HASH_BLOCK DirectoryL1HashBlock;
 
-    HashBlockEntry = (CurrentBlock / 0xAA) % 0xAA;
+    hashBlockEntry = (directoryBlock / 0xAA) % 0xAA;
 
     RedundantBlockOffset = !Metadata.VolumeDescriptor.Stfs.ReadOnlyFormat &&
-        DirectoryL1HashBlock.Entries[HashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
+        DirectoryL1HashBlock.Entries[hashBlockEntry].Level.LevelN.ActiveIndex ? 0x1000 : 0;
 }
 
 
-HashBlockNum = StfComputeLevelNBackingHashBlockNumber(CurrentBlock, 0);
-HashBlockOffset = StfsBackingBlockToOffset(HashBlockNum);
-HashBlockOffset += RedundantBlockOffset;
+hashBlockNum = StfComputeLevelNBackingHashBlockNumber(directoryBlock, 0);
+hashBlockOffset = StfsBackingBlockToOffset(hashBlockNum);
+hashBlockOffset += RedundantBlockOffset;
 
-Printf("Directory L0 hash block at 0x%X (block %d)\n", HashBlockOffset, HashBlockNum);
+Printf("Directory L0 hash block at 0x%X (block %d)\n", hashBlockOffset, hashBlockNum);
 if (RedundantBlockOffset != 0)
     Printf("(^ shifted by upper level ActiveIndex!)");
 
-FSeek(HashBlockOffset);
+FSeek(hashBlockOffset);
 STF_HASH_BLOCK DirectoryL0HashBlock;
