@@ -504,6 +504,10 @@ int64 StfsDataBlockToOffset_Old(DWORD BlockNumber)
     return StfsBackingBlockToOffset(StfComputeBackingDataBlockNumber_Old(BlockNumber));
 }
 
+// Reads Level0.NextBlockNumber from the L0 hash-entry for the given block, navigating through each hash-level if needed to find the correct L0 block to read from.
+// The Level0.NextBlockNumber value is important for non-ReadOnlyFormat packages, as those packages can be heavily fragmented, with files consisting of blocks located all throughout the package
+// In contrast, ReadOnlyFormat packages like LIVE/PIRS usually have file blocks stored contiguously (even with a Contiguous flag in the STF_DIRECTORY_ENTRY - not sure how much that flag can be trusted though)
+// (this is also why eg. tools like wxPirs mostly work fine with LIVE/PIRS, but almost always completely fails with any CON package - as it never checks the hash tables for NextBlockNumber)
 DWORD StfsGetNextBlock(DWORD BlockNum)
 {
     local DWORD HashBlockNum = 0;
@@ -518,6 +522,14 @@ DWORD StfsGetNextBlock(DWORD BlockNum)
         RedundantBlockOffset = 0;
     else
     {
+        // Non-ReadOnlyFormat packages contain redundant blocks for each hash table, located directly after it
+        // (this shifts some data in the package, so StfComputeLevelNBackingHashBlockNumber & StfComputeBackingDataBlockNumber have to take it into account)
+        
+        // Whether the redundant block is being used ("active") or not seems to be determined by the ActiveIndex flag in the table-level above it
+        // or the volume descriptor RootActiveIndex flag for the top-most level
+        // Incorrectly using the wrong block can result in the wrong L0 block being used, potentially giving out-of-date values for Level0.NextBlockNumber
+        // (Many STFS tools have fallen victim to this over the years, Velocity might be the only public open-source tool that mostly seems to handle them properly)
+        
         if (Metadata.VolumeDescriptor.Stfs.NumberOfTotalBlocks > 0x70E4)
         {
             HashBlockNum = StfComputeLevelNBackingHashBlockNumber(BlockNum, 2);
