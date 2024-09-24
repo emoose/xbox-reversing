@@ -593,14 +593,6 @@ void StfsReadDirectory(int64 BlockNumber, int NumBlocks)
         {
             if (Directory.Entries[i].FileName[0] == 0)
                 continue;
-
-            if (Directory.Entries[i].Directory)
-            {
-                local DWORD NumBlocks = Int24(Directory.Entries[i].ValidDataBlocks0, Directory.Entries[i].ValidDataBlocks1, Directory.Entries[i].ValidDataBlocks2);
-                local DWORD DirBlock = Int24(Directory.Entries[i].FirstBlockNumber0, Directory.Entries[i].FirstBlockNumber1, Directory.Entries[i].FirstBlockNumber2);
-
-                StfsReadDirectory(DirBlock, NumBlocks);
-            }
         }
 
         currentBlock = StfsGetNextBlock(currentBlock);

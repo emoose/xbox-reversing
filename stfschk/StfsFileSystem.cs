@@ -84,7 +84,7 @@ namespace STFSChk
             get
             {
                 if (Header.SignatureType != XCONTENT_HEADER.kSignatureTypeLiveBE && Header.SignatureType != XCONTENT_HEADER.kSignatureTypePirsBE)
-                    return "unknown (console signed)";
+                    return "console signed";
 
                 var dict = new Dictionary<string, byte[]>()
                 {
