@@ -10,9 +10,7 @@
 //  ID Bytes: 58 42 45 48
 //   History: Added header structs based on game symbols for Xbox 5849
 //------------------------------------------------
-// TODO: 
-//  - Display XOR-decrypted kernel thunk/entrypoint in template view
-//  - Display TitleName in template view
+// TODO:
 //  - Decode TitleID to string form?
 
 DisplayFormatHex();
@@ -41,6 +39,23 @@ struct InitFlag
     DWORD UtilityDriveClusterSize : 2; // 0 = 16K, 1 = 32K, 2 = 64K, 3 = 128K
 };
 
+string ReadXORAddress(DWORD& address, int is_entrypoint)
+{
+    DWORD value = address;
+    
+    if (XORKeyIndex >= 0)
+    {        
+        if (is_entrypoint)
+            value = value ^ XORKey_EntryPoint[XORKeyIndex];
+        else
+            value = value ^ XORKey_KernelThunk[XORKeyIndex];
+    }
+    
+    string s;
+    SPrintf(s, "%Xh", value);
+    return s;
+}
+
 typedef struct _XBEIMAGE_HEADER {
     DWORD Signature;
     UCHAR EncryptedDigest[256];
@@ -53,7 +68,7 @@ typedef struct _XBEIMAGE_HEADER {
     DWORD NumberOfSections;
     DWORD SectionHeadersOfs;
     InitFlag InitFlags;
-    DWORD AddressOfEntryPoint;
+    DWORD AddressOfEntryPoint<read=ReadXORAddress(this, 1)>;
     DWORD TlsDirectoryOfs;
     DWORD SizeOfStackCommit;
     DWORD SizeOfHeapReserve;
@@ -65,7 +80,7 @@ typedef struct _XBEIMAGE_HEADER {
     DWORD DebugPathNameOfs;
     DWORD DebugFileNameOfs;
     DWORD DebugUnicodeFileNameOfs;
-    DWORD XboxKernelThunkDataOfs;
+    DWORD XboxKernelThunkDataOfs<read=ReadXORAddress(this, 0)>;
     DWORD ImportDirectoryOfs;
     DWORD NumberOfLibraryVersions;
     DWORD LibraryVersionsOfs;
@@ -131,7 +146,21 @@ typedef struct _XBEIMAGE_CERTIFICATE {
     XBEIMAGE_CERTIFICATE_KEY AlternateSignatureKeys[16];
     DWORD OriginalSizeOfCertificate;
     DWORD OnlineServiceName;
-} XBEIMAGE_CERTIFICATE;
+} XBEIMAGE_CERTIFICATE<read=ReadCertificate>;
+
+wstring ReadCertificate(XBEIMAGE_CERTIFICATE& cert)
+{
+    string tid;
+    SPrintf(tid, "%08X ", cert.TitleID);
+    string ver;
+    SPrintf(ver, " v%d", cert.Version);
+    
+    wstring s;
+    s += tid;
+    s += cert.TitleName;
+    s += ver;
+    return s;    
+}
 
 struct SectionFlag
 {
@@ -333,12 +362,12 @@ else
     Printf("[+] Unknown encryption!\n");
     
 if (ActualKernelThunk)
-    Printf("[+] XboxKernelThunkData Address: 0x%x\n", ActualKernelThunk);
+    Printf("[+] XboxKernelThunkData Address: 0x%X\n", ActualKernelThunk);
 if (ActualEntryPoint)
-    Printf("[+] AddressOfEntryPoint: 0x%x\n", ActualEntryPoint);
+    Printf("[+] AddressOfEntryPoint: 0x%X\n", ActualEntryPoint);
     
 string KernelThunkName(DWORD id)
-{    
+{
     if (id == 1) return "AvGetSavedDataAddress";
     if (id == 2) return "AvSendTVEncoderOption";
     if (id == 3) return "AvSetDisplayMode";
@@ -730,11 +759,10 @@ string ReadKernelThunk(DWORD Thunk)
     {
         Thunk = Thunk & 0xFFFF;
         ThunkName = KernelThunkName(Thunk);
+        SPrintf(ThunkName, "xboxkrnl.exe!%s (0x%03X)", ThunkName, Thunk);
     }
-        
-    string s;
-    SPrintf(s, "0x%03X = %s", Thunk, ThunkName);
-    return s;
+    
+    return ThunkName;
 }
     
 struct Thunks

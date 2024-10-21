@@ -10,7 +10,8 @@
 //  ID Bytes: 58 45 00 00
 //   History: Added header structs based on game symbols for Xbox Alpha 3521
 //------------------------------------------------
-// TODO: Fetch chars for NameOfs fields?
+
+DisplayFormatHex();
 
 const int PAGE_SIZE = 0x1000;
 
@@ -60,7 +61,358 @@ typedef struct _XIMAGE_MODULE_HEADER
   DWORD OrgTimestamp;
   WORD NameOfs;
   WORD DependStrOfs;
-} XIMAGE_MODULE_HEADER;
+  
+  local long pos = FTell();
+  FSeek(MiscDataOffset + NameOfs);
+  string Name;
+  FSeek(MiscDataOffset + DependStrOfs);
+  string DependStr;
+  FSeek(pos);
+} XIMAGE_MODULE_HEADER<read=ReadModuleHeader>;
+
+string ReadModuleHeader(XIMAGE_MODULE_HEADER& header)
+{
+    return header.Name;    
+}
+
+string KernelThunkName(DWORD id)
+{
+    if (id == 1) return "AvSetDisplayMode";
+    if (id == 2) return "AvSendTVEncoderOption";
+    if (id == 3) return "DbgBreakPoint";
+    if (id == 4) return "DbgBreakPointWithStatus";
+    if (id == 5) return "DbgLoadImageSymbols";
+    if (id == 6) return "DbgPrint";
+    if (id == 7) return "DbgPrintReturnControlC";
+    if (id == 8) return "DbgPrompt";
+    if (id == 9) return "DbgUnLoadImageSymbols";
+    if (id == 10) return "ExAcquireReadWriteLockExclusive";
+    if (id == 11) return "ExAcquireReadWriteLockShared";
+    if (id == 12) return "ExAllocatePool";
+    if (id == 13) return "ExAllocatePoolWithTag";
+    if (id == 14) return "ExEventObjectType";
+    if (id == 15) return "ExFreePool";
+    if (id == 16) return "ExInitializeReadWriteLock";
+    if (id == 17) return "ExInterlockedAddLargeInteger";
+    if (id == 18) return "ExInterlockedAddLargeStatistic";
+    if (id == 19) return "ExInterlockedCompareExchange64";
+    if (id == 20) return "ExMutantObjectType";
+    if (id == 21) return "ExQueryPoolBlockSize";
+    if (id == 22) return "ExRaiseException";
+    if (id == 23) return "ExRaiseStatus";
+    if (id == 24) return "ExReleaseReadWriteLock";
+    if (id == 25) return "ExSemaphoreObjectType";
+    if (id == 26) return "ExTickCountMultiplier";
+    if (id == 27) return "ExTimerObjectType";
+    if (id == 28) return "ExfInterlockedInsertHeadList";
+    if (id == 29) return "ExfInterlockedInsertTailList";
+    if (id == 30) return "ExfInterlockedRemoveHeadList";
+    if (id == 31) return "FscGetCacheSize";
+    if (id == 32) return "FscInvalidateIdleBlocks";
+    if (id == 33) return "FscSetCacheSize";
+    if (id == 35) return "HalClearSoftwareInterrupt";
+    if (id == 36) return "HalDisableSystemInterrupt";
+    if (id == 37) return "HalDiskCachePartitionCount";
+    if (id == 38) return "HalDiskModelNumber";
+    if (id == 39) return "HalDiskSerialNumber";
+    if (id == 40) return "HalEnableSystemInterrupt";
+    if (id == 41) return "HalGetInterruptVector";
+    if (id == 42) return "HalReadWritePCISpace";
+    if (id == 43) return "HalRegisterShutdownNotification";
+    if (id == 44) return "HalRequestSoftwareInterrupt";
+    if (id == 45) return "HalReturnToFirmware";
+    if (id == 46) return "HalSetupPciDevice";
+    if (id == 47) return "InterlockedCompareExchange";
+    if (id == 48) return "InterlockedDecrement";
+    if (id == 49) return "InterlockedIncrement";
+    if (id == 50) return "InterlockedExchange";
+    if (id == 51) return "InterlockedExchangeAdd";
+    if (id == 52) return "InterlockedFlushSList";
+    if (id == 53) return "InterlockedPopEntrySList";
+    if (id == 54) return "InterlockedPushEntrySList";
+    if (id == 55) return "IoAllocateIrp";
+    if (id == 56) return "IoBuildAsynchronousFsdRequest";
+    if (id == 57) return "IoBuildDeviceIoControlRequest";
+    if (id == 58) return "IoBuildSynchronousFsdRequest";
+    if (id == 59) return "IoCheckShareAccess";
+    if (id == 60) return "IoCompletionObjectType";
+    if (id == 61) return "IoCreateDevice";
+    if (id == 62) return "IoCreateFile";
+    if (id == 63) return "IoCreateSymbolicLink";
+    if (id == 64) return "IoDeleteDevice";
+    if (id == 65) return "IoDeleteSymbolicLink";
+    if (id == 66) return "IoDeviceObjectType";
+    if (id == 67) return "IoFileObjectType";
+    if (id == 68) return "IoFreeIrp";
+    if (id == 69) return "IoInitializeIrp";
+    if (id == 70) return "IoInvalidDeviceRequest";
+    if (id == 71) return "IoQueryFileInformation";
+    if (id == 72) return "IoQueryVolumeInformation";
+    if (id == 73) return "IoQueueThreadIrp";
+    if (id == 74) return "IoRemoveShareAccess";
+    if (id == 75) return "IoSetIoCompletion";
+    if (id == 76) return "IoSetShareAccess";
+    if (id == 77) return "IoStartNextPacket";
+    if (id == 78) return "IoStartNextPacketByKey";
+    if (id == 79) return "IoStartPacket";
+    if (id == 80) return "IoSynchronousDeviceIoControlRequest";
+    if (id == 81) return "IoSynchronousFsdRequest";
+    if (id == 82) return "IofCallDriver";
+    if (id == 83) return "IofCompleteRequest";
+    if (id == 84) return "KdDebuggerEnabled";
+    if (id == 85) return "KdDebuggerNotPresent";
+    if (id == 86) return "KdEnteredDebugger";
+    if (id == 87) return "KdPollBreakIn";
+    if (id == 88) return "KeAlertResumeThread";
+    if (id == 89) return "KeAlertThread";
+    if (id == 90) return "KeBoostPriorityThread";
+    if (id == 91) return "KeBugCheck";
+    if (id == 92) return "KeBugCheckEx";
+    if (id == 93) return "KeCancelTimer";
+    if (id == 94) return "KeConnectInterrupt";
+    if (id == 95) return "KeDelayExecutionThread";
+    if (id == 96) return "KeDisconnectInterrupt";
+    if (id == 97) return "KeEnterCriticalRegion";
+    if (id == 98) return "KeEnterKernelDebugger";
+    if (id == 99) return "KeGetCurrentIrql";
+    if (id == 100) return "KeGetCurrentThread";
+    if (id == 101) return "KeInitializeApc";
+    if (id == 102) return "KeInitializeDeviceQueue";
+    if (id == 103) return "KeInitializeDpc";
+    if (id == 104) return "KeInitializeEvent";
+    if (id == 105) return "KeInitializeInterrupt";
+    if (id == 106) return "KeInitializeMutant";
+    if (id == 107) return "KeInitializeQueue";
+    if (id == 108) return "KeInitializeSemaphore";
+    if (id == 109) return "KeInitializeTimerEx";
+    if (id == 110) return "KeInsertByKeyDeviceQueue";
+    if (id == 111) return "KeInsertDeviceQueue";
+    if (id == 112) return "KeInsertHeadQueue";
+    if (id == 113) return "KeInsertQueue";
+    if (id == 114) return "KeInsertQueueApc";
+    if (id == 115) return "KeInsertQueueDpc";
+    if (id == 116) return "KeInterruptTime";
+    if (id == 117) return "KeIsExecutingDpc";
+    if (id == 118) return "KeLeaveCriticalRegion";
+    if (id == 119) return "KePulseEvent";
+    if (id == 120) return "KeQueryBasePriorityThread";
+    if (id == 121) return "KeQueryInterruptTime";
+    if (id == 122) return "KeQueryPerformanceCounter";
+    if (id == 123) return "KeQuerySystemTime";
+    if (id == 124) return "KeRaiseIrqlToDpcLevel";
+    if (id == 125) return "KeRaiseIrqlToSynchLevel";
+    if (id == 126) return "KeReleaseMutant";
+    if (id == 127) return "KeReleaseSemaphore";
+    if (id == 128) return "KeRemoveByKeyDeviceQueue";
+    if (id == 129) return "KeRemoveDeviceQueue";
+    if (id == 130) return "KeRemoveEntryDeviceQueue";
+    if (id == 131) return "KeRemoveQueue";
+    if (id == 132) return "KeRemoveQueueDpc";
+    if (id == 133) return "KeResetEvent";
+    if (id == 134) return "KeRestoreFloatingPointState";
+    if (id == 135) return "KeResumeThread";
+    if (id == 136) return "KeRundownQueue";
+    if (id == 137) return "KeSaveFloatingPointState";
+    if (id == 138) return "KeSetBasePriorityThread";
+    if (id == 139) return "KeSetDisableBoostThread";
+    if (id == 140) return "KeSetEvent";
+    if (id == 141) return "KeSetEventBoostPriority";
+    if (id == 142) return "KeSetPriorityProcess";
+    if (id == 143) return "KeSetPriorityThread";
+    if (id == 144) return "KeSetSystemTime";
+    if (id == 145) return "KeSetTimer";
+    if (id == 146) return "KeSetTimerEx";
+    if (id == 147) return "KeStallExecutionProcessor";
+    if (id == 148) return "KeSuspendThread";
+    if (id == 149) return "KeSynchronizeExecution";
+    if (id == 150) return "KeSystemTime";
+    if (id == 151) return "KeTestAlertThread";
+    if (id == 152) return "KeTickCount";
+    if (id == 153) return "KeTimeIncrement";
+    if (id == 154) return "KeWaitForMultipleObjects";
+    if (id == 155) return "KeWaitForSingleObject";
+    if (id == 156) return "KfRaiseIrql";
+    if (id == 157) return "KfLowerIrql";
+    if (id == 158) return "KiBugCheckData";
+    if (id == 159) return "KiUnlockDispatcherDatabase";
+    if (id == 160) return "LaunchDataPage";
+    if (id == 161) return "MmAllocateContiguousMemory";
+    if (id == 162) return "MmAllocateContiguousMemoryEx";
+    if (id == 163) return "MmAllocateSystemMemory";
+    if (id == 164) return "MmCreateKernelStack";
+    if (id == 165) return "MmDeleteKernelStack";
+    if (id == 166) return "MmFreeContiguousMemory";
+    if (id == 167) return "MmFreeSystemMemory";
+    if (id == 168) return "MmGetPhysicalAddress";
+    if (id == 169) return "MmIsAddressValid";
+    if (id == 170) return "MmLockUnlockBufferPages";
+    if (id == 171) return "MmLockUnlockPhysicalPage";
+    if (id == 172) return "MmMapIoSpace";
+    if (id == 173) return "MmPersistContiguousMemory";
+    if (id == 174) return "MmQueryAddressProtect";
+    if (id == 175) return "MmQueryAllocationSize";
+    if (id == 176) return "MmQueryStatistics";
+    if (id == 177) return "MmSetAddressProtect";
+    if (id == 178) return "MmUnmapIoSpace";
+    if (id == 179) return "NtAllocateVirtualMemory";
+    if (id == 180) return "NtBuildNumber";
+    if (id == 181) return "NtCancelTimer";
+    if (id == 182) return "NtClearEvent";
+    if (id == 183) return "NtClose";
+    if (id == 184) return "NtCreateDirectoryObject";
+    if (id == 185) return "NtCreateEvent";
+    if (id == 186) return "NtCreateFile";
+    if (id == 187) return "NtCreateIoCompletion";
+    if (id == 188) return "NtCreateMutant";
+    if (id == 189) return "NtCreateSemaphore";
+    if (id == 190) return "NtCreateTimer";
+    if (id == 191) return "NtDeleteFile";
+    if (id == 192) return "NtDeviceIoControlFile";
+    if (id == 193) return "NtDuplicateObject";
+    if (id == 194) return "NtFlushBuffersFile";
+    if (id == 195) return "NtFreeVirtualMemory";
+    if (id == 196) return "NtFsControlFile";
+    if (id == 197) return "NtGetTickCount";
+    if (id == 198) return "NtOpenDirectoryObject";
+    if (id == 199) return "NtOpenFile";
+    if (id == 200) return "NtOpenSymbolicLinkObject";
+    if (id == 201) return "NtProtectVirtualMemory";
+    if (id == 202) return "NtPulseEvent";
+    if (id == 203) return "NtQueueApcThread";
+    if (id == 204) return "NtQueryDirectoryFile";
+    if (id == 205) return "NtQueryDirectoryObject";
+    if (id == 206) return "NtQueryEvent";
+    if (id == 207) return "NtQueryFullAttributesFile";
+    if (id == 208) return "NtQueryInformationFile";
+    if (id == 209) return "NtQueryIoCompletion";
+    if (id == 210) return "NtQueryMutant";
+    if (id == 211) return "NtQuerySemaphore";
+    if (id == 212) return "NtQuerySymbolicLinkObject";
+    if (id == 213) return "NtQueryTimer";
+    if (id == 214) return "NtQueryVirtualMemory";
+    if (id == 215) return "NtQueryVolumeInformationFile";
+    if (id == 216) return "NtReadFile";
+    if (id == 217) return "NtReadFileScatter";
+    if (id == 218) return "NtReleaseMutant";
+    if (id == 219) return "NtReleaseSemaphore";
+    if (id == 220) return "NtRemoveIoCompletion";
+    if (id == 221) return "NtResumeThread";
+    if (id == 222) return "NtSetEvent";
+    if (id == 223) return "NtSetInformationFile";
+    if (id == 224) return "NtSetIoCompletion";
+    if (id == 225) return "NtSetSystemTime";
+    if (id == 226) return "NtSetTimerEx";
+    if (id == 227) return "NtSignalAndWaitForSingleObjectEx";
+    if (id == 228) return "NtSuspendThread";
+    if (id == 229) return "NtUserIoApcDispatcher";
+    if (id == 230) return "NtWaitForSingleObject";
+    if (id == 231) return "NtWaitForSingleObjectEx";
+    if (id == 232) return "NtWaitForMultipleObjectsEx";
+    if (id == 233) return "NtWriteFile";
+    if (id == 234) return "NtWriteFileGather";
+    if (id == 235) return "NtYieldExecution";
+    if (id == 236) return "ObCreateObject";
+    if (id == 237) return "ObDirectoryObjectType";
+    if (id == 238) return "ObInsertObject";
+    if (id == 239) return "ObMakeTemporaryObject";
+    if (id == 240) return "ObOpenObjectByName";
+    if (id == 241) return "ObOpenObjectByPointer";
+    if (id == 242) return "ObpObjectHandleTable";
+    if (id == 243) return "ObReferenceObjectByHandle";
+    if (id == 244) return "ObReferenceObjectByName";
+    if (id == 245) return "ObReferenceObjectByPointer";
+    if (id == 246) return "ObSymbolicLinkObjectType";
+    if (id == 247) return "ObfDereferenceObject";
+    if (id == 248) return "ObfReferenceObject";
+    if (id == 249) return "PhyInitialize";
+    if (id == 250) return "PhyGetLinkState";
+    if (id == 251) return "PsCreateSystemThread";
+    if (id == 252) return "PsCreateSystemThreadEx";
+    if (id == 253) return "PsQueryStatistics";
+    if (id == 254) return "PsSetCreateThreadNotifyRoutine";
+    if (id == 255) return "PsTerminateSystemThread";
+    if (id == 256) return "PsThreadObjectType";
+    if (id == 257) return "RtlAnsiStringToUnicodeString";
+    if (id == 258) return "RtlAppendStringToString";
+    if (id == 259) return "RtlAppendUnicodeStringToString";
+    if (id == 260) return "RtlAppendUnicodeToString";
+    if (id == 261) return "RtlAssert";
+    if (id == 262) return "RtlCaptureContext";
+    if (id == 263) return "RtlCaptureStackBackTrace";
+    if (id == 264) return "RtlCharToInteger";
+    if (id == 265) return "RtlCompareMemory";
+    if (id == 266) return "RtlCompareMemoryUlong";
+    if (id == 267) return "RtlCompareString";
+    if (id == 268) return "RtlCompareUnicodeString";
+    if (id == 269) return "RtlCopyString";
+    if (id == 270) return "RtlCopyUnicodeString";
+    if (id == 271) return "RtlCreateUnicodeString";
+    if (id == 272) return "RtlDowncaseUnicodeString";
+    if (id == 273) return "RtlEnterCriticalSection";
+    if (id == 274) return "RtlEnterCriticalSectionAndRegion";
+    if (id == 275) return "RtlEqualString";
+    if (id == 276) return "RtlEqualUnicodeString";
+    if (id == 277) return "RtlExtendedIntegerMultiply";
+    if (id == 278) return "RtlExtendedLargeIntegerDivide";
+    if (id == 279) return "RtlExtendedMagicDivide";
+    if (id == 280) return "RtlFillMemory";
+    if (id == 281) return "RtlFillMemoryUlong";
+    if (id == 282) return "RtlFreeAnsiString";
+    if (id == 283) return "RtlFreeUnicodeString";
+    if (id == 284) return "RtlGetCallersAddress";
+    if (id == 285) return "RtlInitAnsiString";
+    if (id == 286) return "RtlInitUnicodeString";
+    if (id == 287) return "RtlInitializeCriticalSection";
+    if (id == 288) return "RtlIntegerToChar";
+    if (id == 289) return "RtlIntegerToUnicodeString";
+    if (id == 290) return "RtlLeaveCriticalSection";
+    if (id == 291) return "RtlLeaveCriticalSectionAndRegion";
+    if (id == 292) return "RtlMapGenericMask";
+    if (id == 293) return "RtlMoveMemory";
+    if (id == 294) return "RtlMultiByteToUnicodeN";
+    if (id == 295) return "RtlMultiByteToUnicodeSize";
+    if (id == 296) return "RtlNtStatusToDosError";
+    if (id == 297) return "RtlRaiseException";
+    if (id == 298) return "RtlRaiseStatus";
+    if (id == 299) return "RtlTimeFieldsToTime";
+    if (id == 300) return "RtlTimeToTimeFields";
+    if (id == 301) return "RtlTryEnterCriticalSection";
+    if (id == 302) return "RtlUlongByteSwap";
+    if (id == 303) return "RtlUnicodeStringToAnsiString";
+    if (id == 304) return "RtlUnicodeStringToInteger";
+    if (id == 305) return "RtlUnicodeToMultiByteN";
+    if (id == 306) return "RtlUnicodeToMultiByteSize";
+    if (id == 307) return "RtlUnwind";
+    if (id == 308) return "RtlUpcaseUnicodeChar";
+    if (id == 309) return "RtlUpcaseUnicodeString";
+    if (id == 310) return "RtlUpcaseUnicodeToMultiByteN";
+    if (id == 311) return "RtlUpperChar";
+    if (id == 312) return "RtlUpperString";
+    if (id == 313) return "RtlUshortByteSwap";
+    if (id == 314) return "RtlWalkFrameChain";
+    if (id == 315) return "RtlZeroMemory";
+    if (id == 316) return "XCryptService";
+    if (id == 317) return "XeFindLoaderEntry";
+    if (id == 318) return "XeLoadOrUnload";
+    if (id == 319) return "READ_PORT_BUFFER_UCHAR";
+    if (id == 320) return "READ_PORT_BUFFER_USHORT";
+    if (id == 321) return "READ_PORT_BUFFER_ULONG";
+    if (id == 322) return "WRITE_PORT_BUFFER_UCHAR";
+    if (id == 323) return "WRITE_PORT_BUFFER_USHORT";
+    if (id == 324) return "WRITE_PORT_BUFFER_ULONG";
+    if (id == 325) return "ExpReadFactorySettings";
+    if (id == 326) return "XProfpControl";
+    if (id == 327) return "XProfpGetData";
+    if (id == 328) return "IrtClientInitFast";
+    if (id == 329) return "IrtSweep";
+    if (id == 330) return "MmDbgAllocateMemory";
+    if (id == 331) return "MmDbgFreeMemory";
+    if (id == 332) return "MmDbgQueryAvailablePages";
+    if (id == 333) return "MmDbgReleaseAddress";
+    if (id == 334) return "MmDbgWriteCheck";
+    
+    return "UnknownThunk";
+}
 
 typedef struct _XIMAGE_IMPORT_HEADER
 {
@@ -69,7 +421,27 @@ typedef struct _XIMAGE_IMPORT_HEADER
   DWORD IATRVA;
   DWORD Ordinal;
   DWORD NameOfs;
-} XIMAGE_IMPORT_HEADER;
+  
+  if (Ordinal == 0xFFFFFFFF)
+  {
+      local long pos = FTell();
+      FSeek(MiscDataOffset + NameOfs);
+      string Name;
+      FSeek(pos);
+  }
+} XIMAGE_IMPORT_HEADER<read=ReadImportHeader>;
+
+string ReadImportHeader(XIMAGE_IMPORT_HEADER& header)
+{
+    string s = Modules[header.ExportModuleIndex].Name;
+    s += "!";
+    if (header.Ordinal == 0xFFFFFFFF)
+        s += header.Name;
+    else
+        SPrintf(s, "%s%s (0x%03X)", s, KernelThunkName(header.Ordinal & 0xFFFF), header.Ordinal);
+    
+    return s;
+}
 
 typedef struct _XIMAGE_SECTION_HEADER
 {
@@ -81,7 +453,12 @@ typedef struct _XIMAGE_SECTION_HEADER
   DWORD HeadPage;
   DWORD BodyPage;
   DWORD TailPage;
-} XIMAGE_SECTION_HEADER;
+} XIMAGE_SECTION_HEADER<read=ReadSectionHeader>;
+
+string ReadSectionHeader(XIMAGE_SECTION_HEADER& header)
+{
+    return header.Name;    
+}
 
 typedef struct _XBOX_CERT
 {
@@ -97,24 +474,70 @@ typedef struct _XBOX_CERT
   DWORD AltTitleIds[16];
   wchar_t TitleName[40]; // TODO: unicode string
   wchar_t PublisherName[32];
-} XBOX_CERT;
+} XBOX_CERT<read=ReadXboxCert>;
+wstring ReadXboxCert(XBOX_CERT& cert)
+{
+    string tid;
+    SPrintf(tid, "%08X ", cert.TitleID);
+    wstring s;
+    s += tid;
+    s += cert.PublisherName;
+    s += " - ";
+    s += cert.TitleName;
+    return s;
+}
 
 struct SHA1Digest
 {
   byte Data[0x14];
 };
 
+uint VAToOffset(uint va)
+{
+    if (va < Header.BaseAddress)
+        return va;
+    
+    local int i = 0;
+    local uint section_end = 0;
+    if (Header.SectionHeadersOfs)
+    {
+        for(i = 0; i < Header.NumberOfSections; i++)
+        {
+            section_end = Sections[i].VirtualAddress + Sections[i].VirtualSize;
+            if (Sections[i].VirtualAddress > va || va >= section_end)
+                continue;
+            return (va - Sections[i].VirtualAddress) + Sections[i].PointerToRawData;
+        }
+    }
+    
+    return va - Header.BaseAddress;
+}
+
 XIMAGE_HEADER Header;
-XIMAGE_MODULE_HEADER Modules[Header.OptionalHeader.NumberOfModules];
+local uint MiscDataOffset = FTell() + 
+    (/*sizeof(XIMAGE_MODULE_HEADER)*/ 0x1C * Header.OptionalHeader.NumberOfModules) + 
+    (sizeof(XIMAGE_SECTION_HEADER) * Header.OptionalHeader.NumberOfSections) + 
+    (sizeof(SHA1Digest) * Header.OptionalHeader.NumberOfDigests) + 
+    (/*sizeof(XIMAGE_IMPORT_HEADER)*/ 0x10 * Header.OptionalHeader.NumberOfImports);
+    
+Printf("MiscDataOffset = %x\n", MiscDataOffset);
+
+XIMAGE_MODULE_HEADER Modules[Header.OptionalHeader.NumberOfModules]<optimize=false>;
 XIMAGE_SECTION_HEADER Sections[Header.OptionalHeader.NumberOfSections];
 SHA1Digest Digests[Header.OptionalHeader.NumberOfDigests];
-XIMAGE_IMPORT_HEADER Imports[Header.OptionalHeader.NumberOfImports];
-byte MiscData[Header.OptionalHeader.SizeOfMiscData];
+XIMAGE_IMPORT_HEADER Imports[Header.OptionalHeader.NumberOfImports]<optimize=false>;
+
+byte MiscData[Header.OptionalHeader.SizeOfMiscData]<hidden=true>;
+
 XBOX_CERT CertInfo;
 byte EncHeaderDigest[Header.OptionalHeader.SizeOfEncHeaderDigest]; // Signature
 
 FSeek(Header.PagesInHeaders * PAGE_SIZE);
 
+// Header only contains size of image in pages
+// Which will likely be larger than the actual file-size, since the last page will be incomplete on-disk
+// We'll work out the remainder and then add that onto the total complete pages
+// (using header values as much as possible since kernel itself bases things on them)
 local int PESize = FileSize() - FTell();
 local int PERemainder = PESize % PAGE_SIZE;
 local int PESectionPages = Header.PagesInSections;
