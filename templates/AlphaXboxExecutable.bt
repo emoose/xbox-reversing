@@ -1,0 +1,124 @@
+//------------------------------------------------
+//--- 010 Editor v14.0.1 Binary Template
+//
+//    File: AlphaXboxExecutable.bt
+//   Authors: emoose
+//   Version: 1.0
+//   Purpose: Map out pre-release Xbox Executable headers (XE)
+//  Category: Executable
+// File Mask: *.xbe
+//  ID Bytes: 58 45 00 00
+//   History: Added header structs based on game symbols for Xbox Alpha 3521
+//------------------------------------------------
+// TODO: Fetch chars for NameOfs fields?
+
+const int PAGE_SIZE = 0x1000;
+
+typedef struct _XIMAGE_OPTIONAL_HEADER
+{
+  WORD MajorImageVersion;
+  WORD MinorImageVersion;
+  WORD KernelVersion[4];
+  WORD XAPIVersion[4];
+  DWORD InitFlags;
+  DWORD SizeOfStackCommit;
+  DWORD SizeOfHeapReserve;
+  DWORD SizeOfHeapCommit;
+  DWORD TlsDirectory;
+  WORD NumberOfModules;
+  WORD NumberOfSections;
+  WORD NumberOfDigests;
+  WORD NumberOfImports;
+  WORD SizeOfMiscData;
+  WORD SizeOfCertInfo;
+  WORD SizeOfEncHeaderDigest;
+  WORD Reserved;
+} XIMAGE_OPTIONAL_HEADER;
+
+typedef struct _XIMAGE_HEADER
+{
+  DWORD Signature;
+  DWORD HeadersBase;
+  DWORD SectionsBase;
+  DWORD PagesInHeaders;
+  DWORD PagesInSections;
+  DWORD SizeOfImage;
+  DWORD SectionAlignment;
+  DWORD TimeDateStamp;
+  DWORD Checksum;
+  DWORD SizeOfOptionalHeader;
+  XIMAGE_OPTIONAL_HEADER OptionalHeader;
+} XIMAGE_HEADER;
+
+typedef struct _XIMAGE_MODULE_HEADER
+{
+  DWORD ImageBase;
+  DWORD AddressOfEntryPoint;
+  DWORD ModuleFlags;
+  DWORD OrgSizeOfImage;
+  DWORD OrgCheckSum;
+  DWORD OrgTimestamp;
+  WORD NameOfs;
+  WORD DependStrOfs;
+} XIMAGE_MODULE_HEADER;
+
+typedef struct _XIMAGE_IMPORT_HEADER
+{
+  WORD ExportModuleIndex;
+  WORD ImportModuleIndex;
+  DWORD IATRVA;
+  DWORD Ordinal;
+  DWORD NameOfs;
+} XIMAGE_IMPORT_HEADER;
+
+typedef struct _XIMAGE_SECTION_HEADER
+{
+  char Name[8];
+  DWORD VirtualAddress;
+  DWORD VirtualSize;
+  WORD ModuleIndex;
+  WORD SectionFlags;
+  DWORD HeadPage;
+  DWORD BodyPage;
+  DWORD TailPage;
+} XIMAGE_SECTION_HEADER;
+
+typedef struct _XBOX_CERT
+{
+  WORD CertSig;
+  WORD Reserved1;
+  DWORD TitleID;
+  DWORD SignatureTimeDate;
+  DWORD AllowedMedia;
+  DWORD ContentType;
+  WORD ParentalControl;
+  BYTE GameRegion;
+  BYTE Reserved2;
+  DWORD AltTitleIds[16];
+  wchar_t TitleName[40]; // TODO: unicode string
+  wchar_t PublisherName[32];
+} XBOX_CERT;
+
+struct SHA1Digest
+{
+  byte Data[0x14];
+};
+
+XIMAGE_HEADER Header;
+XIMAGE_MODULE_HEADER Modules[Header.OptionalHeader.NumberOfModules];
+XIMAGE_SECTION_HEADER Sections[Header.OptionalHeader.NumberOfSections];
+SHA1Digest Digests[Header.OptionalHeader.NumberOfDigests];
+XIMAGE_IMPORT_HEADER Imports[Header.OptionalHeader.NumberOfImports];
+byte MiscData[Header.OptionalHeader.SizeOfMiscData];
+XBOX_CERT CertInfo;
+byte EncHeaderDigest[Header.OptionalHeader.SizeOfEncHeaderDigest]; // Signature
+
+FSeek(Header.PagesInHeaders * PAGE_SIZE);
+
+local int PESize = FileSize() - FTell();
+local int PERemainder = PESize % PAGE_SIZE;
+local int PESectionPages = Header.PagesInSections;
+if (PERemainder > 0) // if last page is incomplete, remove it from page count
+  PESectionPages = PESectionPages - 1;
+
+byte PEImage[(PESectionPages * PAGE_SIZE) + PERemainder];
