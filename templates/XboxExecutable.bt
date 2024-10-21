@@ -229,6 +229,16 @@ string ReadCodeViewInfo( CV_INFO_PDB70& f )
     return f.PdbFileName;
 }
 
+typedef struct _IMAGE_TLS_DIRECTORY
+{
+    DWORD StartAddressOfRawData;
+    DWORD EndAddressOfRawData;
+    DWORD AddressOfIndex;
+    DWORD AddressOfCallBacks;
+    DWORD SizeOfZeroFill;
+    DWORD Characteristics;
+} IMAGE_TLS_DIRECTORY;
+
 XBEIMAGE_HEADER Header;
 if (Header.CertificateOfs)
 {
@@ -290,6 +300,11 @@ if (Header.MicrosoftLogoOfs)
 {
     FSeek(VAToOffset(Header.MicrosoftLogoOfs));
     BYTE MicrosoftLogo[Header.SizeOfMicrosoftLogo];
+}
+if (Header.TlsDirectoryOfs)
+{
+    FSeek(VAToOffset(Header.TlsDirectoryOfs));
+    IMAGE_TLS_DIRECTORY TlsDirectory;    
 }
 
 local uint ExeAddressStart = Header.BaseAddress;
