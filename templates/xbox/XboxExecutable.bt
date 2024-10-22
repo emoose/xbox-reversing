@@ -48,7 +48,7 @@ string ReadXORAddress(DWORD& address, int is_entrypoint)
         if (is_entrypoint)
             value = value ^ XORKey_EntryPoint[XORKeyIndex];
         else
-            value = value ^ XORKey_KernelThunk[XORKeyIndex];
+            value = value ^ XORKey_KernelThunks[XORKeyIndex];
     }
     
     string s;

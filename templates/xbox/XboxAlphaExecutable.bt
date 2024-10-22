@@ -45,7 +45,7 @@ typedef struct _XIMAGE_HEADER
   DWORD PagesInSections;
   DWORD SizeOfImage;
   DWORD SectionAlignment;
-  DWORD TimeDateStamp;
+  time_t TimeDateStamp;
   DWORD Checksum;
   DWORD SizeOfOptionalHeader;
   XIMAGE_OPTIONAL_HEADER OptionalHeader;
@@ -58,7 +58,7 @@ typedef struct _XIMAGE_MODULE_HEADER
   DWORD ModuleFlags;
   DWORD OrgSizeOfImage;
   DWORD OrgCheckSum;
-  DWORD OrgTimestamp;
+  time_t OrgTimestamp;
   WORD NameOfs;
   WORD DependStrOfs;
   
